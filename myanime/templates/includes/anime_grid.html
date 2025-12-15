@@ -1,0 +1,53 @@
+<div class="anime-grid">
+    {% for item in anime_list %}
+        {# Универсальный блок: работает и с объектом Anime, и с записью UserAnimeList #}
+        {# Если item.anime существует (это библиотека), берем его. Если нет, считаем item самим аниме. #}
+        {% with anime=item.anime|default:item status=item.status %}
+
+        <a href="{% url 'anime_detail' slug=anime.code %}" class="anime-card" data-name="{{ anime.name_ru|lower }}">
+
+            <div class="poster-wrapper loading">
+                {% if anime.poster_path %}
+                    <img src="{{ anime.poster_path }}"
+                         alt="{{ anime.name_ru }}"
+                         loading="lazy"
+                         onload="this.parentElement.classList.remove('loading')">
+                {% else %}
+                    <div class="no-poster"><span>Нет фото</span></div>
+                {% endif %}
+                <div class="card-overlay"><span class="play-icon">▶</span></div>
+            </div>
+
+            <div class="card-info">
+                <h3 class="card-title">{{ anime.name_ru }}</h3>
+
+                <div class="card-meta">
+                    {# Если есть статус (смотрю/брошено), показываем цветную точку #}
+                    {% if status %}
+                        <span class="status-dot {{ status }}"></span>
+                    {% endif %}
+
+                    {# Твоя дата обновления #}
+                    {% if item.updated_at %}
+                        <span class="date-badge">{{ item.updated_at|date:"d.m.Y" }}</span>
+                    {% endif %}
+                </div>
+
+                {# Твое описание #}
+                {% if anime.description %}
+                    <p class="card-desc">{{ anime.description|striptags|truncatechars:70 }}</p>
+                {% endif %}
+            </div>
+        </a>
+        {% endwith %}
+
+    {% empty %}
+        {# Блок пустого состояния #}
+        <div class="empty-state">
+            <span class="empty-icon">📂</span>
+            <h3>{{ empty_msg|default:"Здесь пока пусто" }}</h3>
+            <p>Добавьте аниме в этот список со страницы просмотра.</p>
+            <a href="{% url 'home' %}" class="browse-btn">Найти аниме</a>
+        </div>
+    {% endfor %}
+</div>

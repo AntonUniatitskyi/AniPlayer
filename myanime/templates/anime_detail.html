@@ -1,0 +1,602 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ anime.name_ru }}{% endblock %}
+
+{% block content %}
+    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+    <div class="backdrop" style="background-image: url('{{ anime.poster_path }}');"></div>
+
+    <div class="content-wrapper">
+        <nav class="breadcrumbs">
+            <a href="{% url 'home' %}">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                Главная
+            </a>
+            <span class="separator">/</span>
+            <span class="current">{{ anime.name_ru }}</span>
+        </nav>
+
+        <div class="anime-hero">
+            <div class="poster-container">
+                {% if anime.poster_path %}
+                    <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}" class="main-poster">
+                {% endif %}
+            </div>
+
+            <div class="info-container">
+                <h1 class="anime-title">{{ anime.name_ru }}</h1>
+                {% if anime.name_en %}
+                    <h2 class="anime-subtitle">{{ anime.name_en }}</h2>
+                {% endif %}
+
+                {% if user.is_authenticated %}
+                    <div class="status-wrapper">
+                        <select id="statusSelect" class="status-select" onchange="changeStatus(this, '{{ anime.code }}')">
+                            <option value="none" {% if not user_status %}selected{% endif %}>➕ Добавить в список</option>
+                            <option value="watching" {% if user_status == 'watching' %}selected{% endif %}>👀 Смотрю</option>
+                            <option value="planned" {% if user_status == 'planned' %}selected{% endif %}>📅 В планах</option>
+                            <option value="completed" {% if user_status == 'completed' %}selected{% endif %}>✅ Просмотрено</option>
+                            <option value="dropped" {% if user_status == 'dropped' %}selected{% endif %}>🗑 Брошено</option>
+                            <option value="none" class="remove-option">❌ Убрать из списка</option>
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div class="meta-tags">
+                    <span class="tag">ID: {{ anime.anilibria_id }}</span>
+                    <span class="tag">Обновлено: {{ anime.updated_at|date:"d.m.Y" }}</span>
+                </div>
+                <div class="description-box">
+                    <p>{{ anime.description }}</p>
+                </div>
+            </div>
+        </div>
+
+        {% if anime.episodes.exists %}
+        <div class="player-section" id="watch">
+            <h3 class="section-title">▶ Смотреть онлайн</h3>
+
+            <div class="cinema-container">
+                <div class="video-wrapper">
+                    <video id="player" controls crossorigin playsinline></video>
+                    <button id="skipOp" class="skip-overlay-btn" style="display: none;">
+                        Пропустить опенинг ⏩
+                    </button>
+                    <button id="skipEd" class="skip-overlay-btn" style="display: none;">
+                        Пропустить эндинг ⏩
+                    </button>
+                </div>
+
+                <div class="playlist-sidebar">
+                    <div class="playlist-header">
+                        <span>Эпизоды ({{ anime.episodes.count }})</span>
+                    </div>
+
+                    <div class="playlist-controls">
+                        <input type="text" id="epSearch" placeholder="Найти серию..." autocomplete="off">
+                        <div id="rangeContainer" class="range-container">
+                            </div>
+                    </div>
+
+                    <div class="episode-list-wrapper">
+                        <div class="episode-grid" id="episodeGrid">
+                            {% for episode in anime.episodes.all %}
+                                <button
+                                    class="ep-row"
+                                    data-id="{{ episode.id }}"
+                                    data-ordinal="{{ episode.ordinal }}"
+                                    data-480="{{ episode.hls_480|default:'' }}"
+                                    data-720="{{ episode.hls_720|default:'' }}"
+                                    data-1080="{{ episode.hls_1080|default:'' }}"
+
+                                    data-op-start="{{ episode.skip_op_start|default:0 }}"
+                                    data-op-end="{{ episode.skip_op_end|default:0 }}"
+                                    data-ed-start="{{ episode.skip_ed_start|default:0 }}"
+                                    data-ed-end="{{ episode.skip_ed_end|default:0 }}"
+
+                                    onclick="selectEpisode(this)">
+
+                                    <span class="ep-icon">
+                                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                    </span>
+                                    <span class="ep-text">Эпизод {{ episode.ordinal }}</span>
+                                    <span class="ep-status"></span>
+                                </button>
+                            {% endfor %}
+                        </div>
+                        <div id="noEpsFound" class="no-eps-found" style="display: none;">Не найдено</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+            <div class="no-content">
+                <h3>Серии скоро появятся...</h3>
+                <p>Мы работаем над загрузкой контента.</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <style>
+    body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; }
+
+    .backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background-size: cover; background-position: center; filter: blur(80px) brightness(0.3); z-index: -1; opacity: 0.5; }
+    .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; }
+
+    .btn-back { display: inline-flex; align-items: center; gap: 8px; color: var(--text-sec); text-decoration: none; margin-bottom: 20px; font-weight: 500; transition: color 0.2s; }
+    .btn-back:hover { color: var(--primary); }
+
+    /* === ШАПКА АНИМЕ === */
+    .anime-hero { display: grid; grid-template-columns: 280px 1fr; gap: 40px; margin-bottom: 50px; background: var(--surface-glass); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+    .main-poster { width: 100%; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+
+    .info-container { display: flex; flex-direction: column; }
+    .anime-title { margin: 0; font-size: 2.5rem; line-height: 1.1; color: var(--text-main); }
+    .anime-subtitle { margin: 5px 0 20px; color: var(--text-sec); font-weight: 400; font-size: 1.2rem; }
+
+    /* === СТАТУС === */
+    .status-wrapper { margin-bottom: 20px; }
+    .status-select {
+        background: var(--surface); color: var(--text-main); border: 1px solid var(--border);
+        padding: 10px 15px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; outline: none;
+        width: 100%; max-width: 250px; transition: border-color 0.3s;
+    }
+    .status-select:hover { border-color: var(--primary); }
+    .status-select option { background: var(--surface); padding: 10px; }
+    .remove-option { color: #ff6b6b; }
+
+    .meta-tags { display: flex; gap: 10px; margin-bottom: 20px; }
+    .tag { background: var(--input-bg); padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); }
+    .description-box { line-height: 1.6; color: var(--text-main); max-height: 200px; overflow-y: auto; }
+
+    /* === ПЛЕЕР И СПИСОК (СТАРАЯ СТРУКТУРА) === */
+    .section-title { margin: 0 0 15px 0; color: var(--text-main); }
+
+    .cinema-container {
+        display: grid;
+        grid-template-columns: 1fr 300px;
+        gap: 0;
+        background: transparent;
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: var(--shadow);
+        border: 1px solid var(--glass-border);
+        backdrop-filter: blur(10px);
+    }
+
+    .video-wrapper {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 16/9;
+        background: #000;
+        z-index: 2;
+    }
+
+    .plyr {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* === БОКОВАЯ ПАНЕЛЬ === */
+    .playlist-sidebar {
+        background: var(--glass-bg);
+
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+
+        border-left: 1px solid var(--glass-border);
+        display: flex;
+        flex-direction: column;
+        height: 0;
+        min-height: 100%;
+        overflow: hidden;
+    }
+
+    .playlist-header {
+        padding: 15px; background: var(--glass-inner-bg);
+        font-weight: bold; border-bottom: 1px solid var(--glass-border);
+        color: var(--text-main); flex-shrink: 0;
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    /* === НОВЫЙ СТИЛЬ СПИСКА СЕРИЙ (ОСТАВЛЯЕМ КРАСИВЫМ) === */
+    .playlist-controls {
+        padding: 10px; border-bottom: 1px solid var(--glass-border);
+        display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
+        background: transparent;
+    }
+
+    #epSearch {
+        width: 100%; padding: 8px 12px;
+        background: var(--glass-input-bg);
+        border: 1px solid var(--glass-border);
+        border-radius: 8px; color: var(--text-main); outline: none; font-size: 0.9rem;
+    }
+    #epSearch:focus { border-color: var(--primary); }
+
+    .range-container {
+        display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px;
+        scrollbar-width: thin;
+    }
+    .range-container::-webkit-scrollbar { height: 4px; }
+    .range-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    .range-btn {
+        background: transparent; border: 1px solid var(--border);
+        color: var(--text-sec); padding: 4px 10px; border-radius: 12px;
+        font-size: 0.75rem; white-space: nowrap; cursor: pointer; transition: 0.2s;
+    }
+    .range-btn:hover { color: var(--text-main); border-color: var(--text-sec); }
+    .range-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    .episode-list-wrapper {
+        flex-grow: 1; overflow-y: auto; padding: 10px;
+        scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+    }
+    .episode-list-wrapper::-webkit-scrollbar { width: 6px; }
+    .episode-list-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .episode-grid {
+        display: flex; flex-direction: column; gap: 4px; padding-right: 5px;
+    }
+
+    .ep-row {
+        display: flex; align-items: center; width: 100%;
+        background: transparent; border: none; border-radius: 8px;
+        padding: 12px 15px; cursor: pointer; transition: all 0.2s ease;
+        text-align: left; color: var(--text-sec); font-family: inherit;
+        border-left: 3px solid transparent;
+    }
+    .ep-row:hover { background: var(--input-bg); color: var(--text-main); padding-left: 20px; }
+    .ep-row.active {
+        background: rgba(187, 134, 252, 0.1); color: var(--primary);
+        border-left-color: var(--primary); font-weight: 600;
+    }
+
+    .ep-icon {
+        display: flex; align-items: center; justify-content: center;
+        width: 24px; height: 24px; margin-right: 15px; opacity: 0.5; transition: 0.2s;
+    }
+    .ep-icon svg { width: 14px; height: 14px; fill: currentColor; }
+    .ep-row:hover .ep-icon { opacity: 1; }
+    .ep-row.active .ep-icon { opacity: 1; transform: scale(1.2); }
+
+    .ep-text { font-size: 0.95rem; flex-grow: 1; }
+
+    .no-eps-found { text-align: center; color: var(--text-sec); padding: 20px; font-size: 0.9rem; }
+    .no-content { background: var(--surface); padding: 40px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
+
+    .skip-overlay-btn {
+            position: absolute;
+            bottom: 60px; /* Чуть выше контролов плеера */
+            right: 20px;
+            z-index: 50; /* Поверх видео */
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid var(--border);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s ease;
+        }
+        .skip-overlay-btn:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* === АДАПТИВ === */
+    @media (max-width: 900px) {
+        .anime-hero { grid-template-columns: 1fr; gap: 20px; }
+        .poster-container { max-width: 200px; margin: 0 auto; }
+        .info-container { text-align: center; }
+        .status-wrapper { display: flex; justify-content: center; }
+        .meta-tags { justify-content: center; }
+
+        .cinema-container { grid-template-columns: 1fr; }
+        .playlist-sidebar {
+            border-left: none; border-top: 1px solid var(--border);
+            height: 400px; max-height: 400px;
+        }
+    }
+    .plyr--full-ui { --plyr-color-main: #bb86fc; }
+    </style>
+
+    <script>
+        // === 1. СТАТУСЫ ===
+        function changeStatus(select, animeSlug) {
+            /* ... твой старый код статусов ... */
+            const status = select.value;
+            select.style.borderColor = 'var(--text-sec)';
+            fetch('/api/update-status/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                body: JSON.stringify({ anime_slug: animeSlug, status: status })
+            })
+            .then(r => r.json()).then(d => {
+                if(d.status==='updated') { select.style.borderColor='#4caf50'; setTimeout(()=>select.style.borderColor='',1000); showToast('Статус обновлен!', 'success'); }
+                else if(d.status==='removed') { select.value='none'; select.style.borderColor=''; showToast('Удалено из списка', 'success');}
+            }).catch(e => { console.error(e); select.style.borderColor='#ff6b6b'; showToast('Ошибка обновления', 'error');});
+        }
+
+        // === 2. ПЛЕЕР + ИСТОРИЯ + СКИПЫ ===
+        document.addEventListener('DOMContentLoaded', () => {
+            const videoElement = document.getElementById('player');
+            const skipOpBtn = document.getElementById('skipOp');
+            const skipEdBtn = document.getElementById('skipEd');
+
+            let hls = null;
+            let player = null;
+            let currentBtn = null;
+            let currentQuality = 1080;
+
+            // Тайминги
+            let opStart=0, opEnd=0, edStart=0, edEnd=0;
+
+            // 🔥 ДАННЫЕ С СЕРВЕРА: Где мы остановились?
+            // Если данных нет, будет null/0
+            const lastEpisodeId = "{{ last_episode_id|default:'null' }}";
+            const lastTimestamp = parseInt("{{ last_timestamp|default:'0' }}");
+
+            // Таймер для сохранения прогресса (чтобы не дудосить сервер)
+            let saveInterval = null;
+
+            function initPlayerOnce() {
+                player = new Plyr(videoElement, {
+                    controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
+                    settings: ['quality', 'speed'],
+                    quality: { default: 1080, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(parseInt(newQ)) }
+                });
+
+                // Перенос кнопок в фулскрин
+                player.on('ready', () => {
+                    const c = player.elements.container;
+                    if(c && skipOpBtn) c.appendChild(skipOpBtn);
+                    if(c && skipEdBtn) c.appendChild(skipEdBtn);
+                });
+
+                // Логика времени (Скипы + Сохранение)
+                player.on('timeupdate', () => {
+                    const t = player.currentTime;
+
+                    // Скипы
+                    if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'block';
+                    else skipOpBtn.style.display = 'none';
+
+                    if (edStart > 0 && edEnd > 0 && t >= edStart && t < edEnd) skipEdBtn.style.display = 'block';
+                    else skipEdBtn.style.display = 'none';
+                });
+
+                // 🔥 СОХРАНЕНИЕ ПРОГРЕССА (Каждые 10 секунд)
+                player.on('playing', () => {
+                    if (!saveInterval) {
+                        saveInterval = setInterval(() => {
+                            saveProgress();
+                        }, 10000); // 10 секунд
+                    }
+                });
+
+                player.on('pause', () => {
+                    saveProgress(); // Сохраняем сразу при паузе
+                    clearInterval(saveInterval);
+                    saveInterval = null;
+                });
+            }
+
+            // Функция отправки времени на сервер
+            function saveProgress() {
+                if (!currentBtn || !player) return;
+                const time = Math.floor(player.currentTime);
+                const epId = currentBtn.getAttribute('data-id');
+
+                if (time > 5) { // Не сохраняем совсем начало
+                    fetch('/api/save-progress/', { // <-- Твой новый URL
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({ episode_id: epId, time: time })
+                    }).catch(()=>{}); // Ошибки игнорируем тихо
+                }
+            }
+
+            // Обработчики кнопок пропуска
+            if(skipOpBtn) skipOpBtn.addEventListener('click', () => { if(player) { player.currentTime = opEnd; player.play(); } });
+            if(skipEdBtn) skipEdBtn.addEventListener('click', () => { if(player) { player.currentTime = edEnd; player.play(); } });
+
+            function updateQuality(newQuality) {
+                if (!currentBtn) return;
+                currentQuality = newQuality;
+                const url = getUrlForQuality(currentBtn, newQuality);
+                if (url) loadStream(url, player.currentTime, player.playing);
+            }
+
+            function loadStream(url, startTime = 0, autoPlay = false) {
+                if (Hls.isSupported()) {
+                    if (hls) hls.destroy();
+                    hls = new Hls();
+                    hls.loadSource(url);
+                    hls.attachMedia(videoElement);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        // 🔥 ВОССТАНОВЛЕНИЕ ВРЕМЕНИ
+                        if (startTime > 0) videoElement.currentTime = startTime;
+                        if (autoPlay) setTimeout(() => player.play(), 100);
+                    });
+                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    videoElement.src = url;
+                    videoElement.addEventListener('loadedmetadata', () => {
+                        if (startTime > 0) videoElement.currentTime = startTime;
+                        if (autoPlay) player.play();
+                    });
+                }
+            }
+
+            function getUrlForQuality(btn, q) {
+                if (q == 1080) return btn.getAttribute('data-1080');
+                if (q == 720) return btn.getAttribute('data-720');
+                if (q == 480) return btn.getAttribute('data-480');
+                return null;
+            }
+
+            window.selectEpisode = function(btn, startTimeOverride = 0) {
+                currentBtn = btn;
+                document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                opStart = parseInt(btn.getAttribute('data-op-start')) || 0;
+                opEnd = parseInt(btn.getAttribute('data-op-end')) || 0;
+                edStart = parseInt(btn.getAttribute('data-ed-start')) || 0;
+                edEnd = parseInt(btn.getAttribute('data-ed-end')) || 0;
+
+                if(skipOpBtn) skipOpBtn.style.display = 'none';
+                if(skipEdBtn) skipEdBtn.style.display = 'none';
+
+                const qualities = [];
+                if (btn.getAttribute('data-1080')) qualities.push(1080);
+                if (btn.getAttribute('data-720')) qualities.push(720);
+                if (btn.getAttribute('data-480')) qualities.push(480);
+                if (!qualities.includes(currentQuality)) currentQuality = qualities[0];
+
+                if (player) {
+                    player.options.quality = { default: currentQuality, options: qualities, forced: true, onChange: (newQ) => updateQuality(parseInt(newQ)) };
+                }
+
+                const url = getUrlForQuality(btn, currentQuality);
+                // 🔥 Запускаем с startTimeOverride (если это автозапуск) или с 0
+                if (url) loadStream(url, startTimeOverride, true);
+            };
+
+            // --- НАВИГАЦИЯ ---
+            const allEpBtns = Array.from(document.querySelectorAll('.ep-row'));
+            const rangeContainer = document.getElementById('rangeContainer');
+            const epSearch = document.getElementById('epSearch');
+            const noEpsFound = document.getElementById('noEpsFound');
+            const CHUNK_SIZE = 50;
+
+            function initEpisodeNav() {
+                if (allEpBtns.length <= CHUNK_SIZE) {
+                    rangeContainer.style.display = 'none'; return;
+                }
+                const totalChunks = Math.ceil(allEpBtns.length / CHUNK_SIZE);
+                rangeContainer.innerHTML = '';
+                for (let i = 0; i < totalChunks; i++) {
+                    const start = i * CHUNK_SIZE + 1;
+                    const end = Math.min((i + 1) * CHUNK_SIZE, allEpBtns.length);
+                    const btn = document.createElement('button');
+                    btn.className = 'range-btn';
+                    btn.textContent = `${start}-${end}`;
+                    btn.onclick = () => showRange(i);
+                    rangeContainer.appendChild(btn);
+                }
+                // НЕ вызываем showRange(0) сразу, сделаем это в логике автозапуска
+            }
+
+            function showRange(chunkIndex) {
+                rangeContainer.querySelectorAll('.range-btn').forEach((b, idx) => {
+                    if (idx === chunkIndex) b.classList.add('active'); else b.classList.remove('active');
+                });
+                const startIdx = chunkIndex * CHUNK_SIZE;
+                const endIdx = startIdx + CHUNK_SIZE;
+                allEpBtns.forEach((btn, idx) => {
+                    if (idx >= startIdx && idx < endIdx) btn.style.display = 'flex';
+                    else btn.style.display = 'none';
+                });
+                epSearch.value = ''; noEpsFound.style.display = 'none';
+            }
+
+            // --- ЗАПУСК ---
+            initPlayerOnce();
+            initEpisodeNav();
+
+            // 🔥 ЛОГИКА АВТОЗАПУСКА (ПРОДОЛЖИТЬ ПРОСМОТР)
+            let targetBtn = null;
+            let startTimestamp = 0;
+
+            // 1. Пытаемся найти кнопку последней просмотренной серии
+            if (lastEpisodeId && lastEpisodeId !== 'null') {
+                const savedBtn = document.querySelector(`.ep-row[data-id="${lastEpisodeId}"]`);
+                if (savedBtn) {
+                    targetBtn = savedBtn;
+                    startTimestamp = lastTimestamp; // Восстанавливаем время
+                }
+            }
+
+            // 2. Если истории нет, берем первую серию
+            if (!targetBtn) {
+                targetBtn = document.querySelector('.ep-row');
+                startTimestamp = 0;
+            }
+
+            // 3. Если кнопка найдена — активируем
+            if (targetBtn) {
+                // Нужно открыть правильный диапазон, если кнопка скрыта
+                if (rangeContainer.style.display !== 'none') {
+                    const btnIndex = allEpBtns.indexOf(targetBtn);
+                    const chunkIndex = Math.floor(btnIndex / CHUNK_SIZE);
+                    showRange(chunkIndex);
+                } else {
+                    // Если диапазонов нет, просто убедимся, что видно
+                    allEpBtns.forEach(b => b.style.display = 'flex');
+                }
+
+                // Запускаем серию
+                // Важно: передаем startTimestamp в selectEpisode
+                // Но мы немного схитрим: вызовем логику selectEpisode "вручную" или адаптируем
+                // Чтобы не усложнять, я просто продублирую логику старта для первого раза:
+
+                currentBtn = targetBtn;
+                targetBtn.classList.add('active');
+
+                // Читаем скипы
+                opStart = parseInt(targetBtn.getAttribute('data-op-start')) || 0;
+                opEnd = parseInt(targetBtn.getAttribute('data-op-end')) || 0;
+                edStart = parseInt(targetBtn.getAttribute('data-ed-start')) || 0;
+                edEnd = parseInt(targetBtn.getAttribute('data-ed-end')) || 0;
+
+                const qualities = [];
+                if (targetBtn.getAttribute('data-1080')) qualities.push(1080);
+                if (targetBtn.getAttribute('data-720')) qualities.push(720);
+                if (targetBtn.getAttribute('data-480')) qualities.push(480);
+                currentQuality = qualities[0];
+
+                player.options.quality = { default: currentQuality, options: qualities, forced: true, onChange: (newQ) => updateQuality(parseInt(newQ)) };
+
+                const url = getUrlForQuality(targetBtn, currentQuality);
+
+                // 🔥 ЗАПУСКАЕМ С НУЖНОЙ СЕКУНДЫ
+                // false = не запускать само видео (чтобы не пугать звуком сразу)
+                // Но время (startTimestamp) выставится
+                if (url) loadStream(url, startTimestamp, false);
+
+                // Скроллим к кнопке, чтобы юзер видел, какая серия выбрана
+                targetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            // Поиск (оставляем в конце)
+            epSearch.addEventListener('input', (e) => {
+                /* ... твой старый код поиска ... */
+                const val = e.target.value.toLowerCase();
+                /* ... */
+                // (скопируй логику из прошлого ответа, она не менялась)
+                // Для краткости я не дублирую тут 20 строк поиска, они стандартные
+                const activeRangeBtn = rangeContainer.querySelector('.range-btn.active');
+                if (val === '') {
+                    if (activeRangeBtn) activeRangeBtn.click(); else allEpBtns.forEach(b => b.style.display = 'flex');
+                    return;
+                }
+                rangeContainer.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+                let visibleCount = 0;
+                allEpBtns.forEach(btn => {
+                    if (btn.innerText.toLowerCase().includes(val)) { btn.style.display = 'flex'; visibleCount++; }
+                    else btn.style.display = 'none';
+                });
+                noEpsFound.style.display = visibleCount === 0 ? 'block' : 'none';
+            });
+        });
+    </script>
+{% endblock %}

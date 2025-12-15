@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+
+{% block title %}Библиотека {{ user.username }}{% endblock %}
+
+{% block content %}
+<div class="library-container">
+    <nav class="breadcrumbs">
+        <a href="{% url 'home' %}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            Главная
+        </a>
+        <span class="separator">/</span>
+        <span class="current">Моя библиотека</span>
+    </nav>
+
+    <div class="profile-header-wrapper">
+        <div class="profile-banner"></div>
+
+        <div class="profile-header">
+            <div class="profile-left">
+                <div class="avatar-placeholder">
+                    {{ user.username|make_list|first|upper }}
+                </div>
+                <div class="profile-text">
+                    <h1>{{ user.username }}</h1>
+                    <div class="stats-row">
+                        <span class="stat-badge">📚 Тайтлов: {{ library_items.count }}</span>
+                        <span class="stat-badge">📅 С нами с {{ user.date_joined|date:"Y" }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="profile-actions">
+                <a href="#" class="action-btn settings" title="Настройки">⚙️ Настройки</a>
+                <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="action-btn logout">🚪 Выйти</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="library-controls">
+        <div class="search-local">
+            <input type="text" id="librarySearch" placeholder="Найти в списке..." onkeyup="filterLibrary()">
+            <span class="search-icon">🔍</span>
+        </div>
+    </div>
+
+    <div class="tabs-wrapper">
+        <div class="tabs">
+            <button class="tab-btn active" onclick="openTab(event, 'watching')">
+                <span class="icon">👀</span> Смотрю <span class="count">{{ watching.count }}</span>
+            </button>
+            <button class="tab-btn" onclick="openTab(event, 'planned')">
+                <span class="icon">📅</span> В планах <span class="count">{{ planned.count }}</span>
+            </button>
+            <button class="tab-btn" onclick="openTab(event, 'completed')">
+                <span class="icon">✅</span> Просмотрено <span class="count">{{ completed.count }}</span>
+            </button>
+            <button class="tab-btn" onclick="openTab(event, 'dropped')">
+                <span class="icon">🗑</span> Брошено <span class="count">{{ dropped.count }}</span>
+            </button>
+        </div>
+    </div>
+
+    <div class="content-area">
+        <div id="watching" class="tab-content active">
+            {% include 'includes/anime_grid.html' with anime_list=watching empty_msg="Вы пока ничего не смотрите." %}
+        </div>
+
+        <div id="planned" class="tab-content">
+            {% include 'includes/anime_grid.html' with anime_list=planned empty_msg="Планы пусты. Самое время пополнить!" %}
+        </div>
+
+        <div id="completed" class="tab-content">
+            {% include 'includes/anime_grid.html' with anime_list=completed empty_msg="Пока нет завершенных аниме." %}
+        </div>
+
+        <div id="dropped" class="tab-content">
+            {% include 'includes/anime_grid.html' with anime_list=dropped empty_msg="Список брошенных чист." %}
+        </div>
+    </div>
+
+</div>
+
+<style>
+    /* === ОСНОВНОЙ КОНТЕЙНЕР === */
+    .library-container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+
+    /* === ШАПКА === */
+    .profile-header-wrapper {
+        position: relative; margin-bottom: 40px;
+        border-radius: 20px; overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow);
+    }
+    .profile-banner {
+        height: 160px;
+        background: linear-gradient(120deg, var(--primary), #8e24aa); /* Градиент вместо картинки */
+        opacity: 0.8;
+    }
+    .profile-header {
+        background: var(--surface-glass);
+        backdrop-filter: blur(20px);
+        padding: 20px 30px;
+        margin-top: -60px; /* Наезд на баннер */
+        display: flex; justify-content: space-between; align-items: flex-end;
+    }
+
+    .profile-left { display: flex; align-items: flex-end; gap: 20px; }
+
+    .avatar-placeholder {
+        width: 110px; height: 110px;
+        background: var(--surface);
+        color: var(--text-main);
+        border: 4px solid var(--surface);
+        font-size: 3rem; font-weight: bold;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    }
+
+    .profile-text { padding-bottom: 10px; }
+    .profile-text h1 { margin: 0 0 5px 0; font-size: 2.2rem; color: var(--text-main); }
+
+    .stats-row { display: flex; gap: 10px; }
+    .stat-badge {
+        background: rgba(120, 120, 120, 0.15); padding: 4px 10px;
+        border-radius: 6px; font-size: 0.85rem; color: var(--text-sec);
+        border: 1px solid rgba(255,255,255,0.05);
+    }
+
+    /* === КНОПКИ ДЕЙСТВИЙ === */
+    .profile-actions { display: flex; gap: 10px; padding-bottom: 15px; }
+    .action-btn {
+        padding: 8px 16px; border-radius: 8px; text-decoration: none;
+        font-weight: 600; font-size: 0.9rem; transition: 0.2s; cursor: pointer;
+        border: 1px solid var(--border); background: var(--surface); color: var(--text-main);
+    }
+    .action-btn:hover { background: var(--input-bg); transform: translateY(-2px); }
+    .action-btn.logout { color: #ff6b6b; border-color: rgba(255, 107, 107, 0.3); }
+    .action-btn.logout:hover { background: rgba(255, 107, 107, 0.1); }
+
+    /* === ПОИСК === */
+    .library-controls { margin-bottom: 20px; }
+    .search-local { position: relative; max-width: 400px; }
+    .search-local input {
+        width: 100%; padding: 12px 15px; padding-right: 40px;
+        background: var(--input-bg); border: 1px solid var(--border);
+        border-radius: 12px; color: var(--text-main); outline: none; transition: 0.3s;
+    }
+    .search-local input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(187, 134, 252, 0.1); }
+    .search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); opacity: 0.5; }
+
+    /* === ТАБЫ === */
+    .tabs-wrapper { margin-bottom: 30px; overflow-x: auto; padding-bottom: 5px; }
+    .tabs { display: inline-flex; background: var(--surface); padding: 5px; border-radius: 16px; border: 1px solid var(--border); min-width: min-content; }
+
+    .tab-btn {
+        background: transparent; border: none; color: var(--text-sec);
+        padding: 10px 20px; border-radius: 12px; cursor: pointer;
+        transition: 0.2s; font-size: 0.95rem; font-weight: 500;
+        display: flex; align-items: center; gap: 8px; white-space: nowrap;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active { background: var(--primary); color: #fff; box-shadow: 0 4px 12px rgba(187, 134, 252, 0.3); }
+
+    .tab-btn .count {
+        background: rgba(255,255,255,0.2); padding: 2px 8px;
+        border-radius: 10px; font-size: 0.8rem;
+    }
+    .tab-btn.active .count { background: rgba(0,0,0,0.2); }
+
+    /* === КОНТЕНТ (СЕТКА) === */
+    .tab-content { display: none; animation: fadeUp 0.3s ease; }
+    .tab-content.active { display: block; }
+
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Стили карточек (из include) */
+    .anime-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 20px; }
+    .anime-card {
+        background: var(--surface); border-radius: 12px; overflow: hidden;
+        text-decoration: none; color: inherit; display: flex; flex-direction: column;
+        border: 1px solid var(--border); transition: transform 0.3s; position: relative;
+    }
+    .anime-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+
+    .poster-wrapper { position: relative; padding-top: 145%; background: #000; overflow: hidden; }
+    .poster-wrapper img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: 0.4s; }
+    .anime-card:hover img { transform: scale(1.05); }
+
+    .card-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.3s; }
+    .anime-card:hover .card-overlay { opacity: 1; }
+    .play-icon { font-size: 2rem; color: #fff; background: var(--primary); width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding-left: 4px; }
+
+    .card-info { padding: 12px; flex-grow: 1; display: flex; flex-direction: column; }
+    .card-title { margin: 0 0 5px 0; font-size: 0.95rem; line-height: 1.3; font-weight: 600; color: var(--text-main); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    .anime-card:hover .card-title { color: var(--primary); }
+
+    .card-meta { margin-top: auto; font-size: 0.8rem; display: flex; align-items: center; color: var(--text-sec); }
+
+    /* Точки статусов */
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+    .status-dot.watching { background: #4caf50; box-shadow: 0 0 6px #4caf50; }
+    .status-dot.planned { background: #2196f3; }
+    .status-dot.completed { background: #9c27b0; }
+    .status-dot.dropped { background: #f44336; }
+
+    /* Пустое состояние */
+    .empty-state { grid-column: 1/-1; text-align: center; padding: 40px; background: var(--surface); border-radius: 12px; border: 2px dashed var(--border); color: var(--text-sec); }
+    .empty-icon { font-size: 3rem; display: block; margin-bottom: 10px; opacity: 0.5; }
+    .browse-btn { display: inline-block; margin-top: 15px; padding: 8px 20px; background: var(--input-bg); color: var(--text-main); text-decoration: none; border-radius: 20px; font-weight: 500; transition: 0.2s; }
+    .browse-btn:hover { background: var(--primary); color: #fff; }
+
+    /* Адаптив */
+    @media (max-width: 768px) {
+        .profile-header { flex-direction: column; align-items: center; text-align: center; margin-top: -50px; }
+        .profile-left { flex-direction: column; align-items: center; width: 100%; }
+        .avatar-placeholder { margin: 0 auto; width: 100px; height: 100px; font-size: 2.5rem; }
+        .profile-actions { width: 100%; justify-content: center; margin-top: 20px; }
+        .search-local { max-width: 100%; }
+        .anime-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    }
+</style>
+
+<script>
+    // === ЛОГИКА ТАБОВ ===
+    function openTab(evt, tabName) {
+        const tabContents = document.querySelectorAll('.tab-content');
+        const tabBtns = document.querySelectorAll('.tab-btn');
+
+        // Скрываем все табы
+        tabContents.forEach(tc => tc.classList.remove('active'));
+        tabBtns.forEach(btn => btn.classList.remove('active'));
+
+        // Показываем нужный
+        document.getElementById(tabName).classList.add('active');
+        evt.currentTarget.classList.add('active');
+
+        // Применяем фильтр поиска к новой вкладке
+        filterLibrary();
+    }
+
+    // === ЖИВОЙ ПОИСК ===
+    function filterLibrary() {
+        const input = document.getElementById('librarySearch');
+        const filter = input.value.toLowerCase();
+
+        // Ищем только в активной вкладке
+        const activeTab = document.querySelector('.tab-content.active');
+        if (!activeTab) return;
+
+        const cards = activeTab.getElementsByClassName('anime-card');
+        let hasVisible = false;
+
+        for (let i = 0; i < cards.length; i++) {
+            // Берем название из data-атрибута
+            const title = cards[i].getAttribute('data-name');
+            if (title && title.includes(filter)) {
+                cards[i].style.display = "";
+                hasVisible = true;
+            } else {
+                cards[i].style.display = "none";
+            }
+        }
+    }
+</script>
+{% endblock %}

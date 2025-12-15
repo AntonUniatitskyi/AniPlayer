@@ -1,0 +1,38 @@
+{% if slider_anime %}
+<div class="hero-container">
+    <div class="hero-wrapper">
+        {% for anime in slider_anime %}
+            <div class="hero-slide {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}">
+
+                <div class="hero-bg" style="background-image: url('{{ anime.poster_path }}');"></div>
+
+                <div class="hero-content">
+                    <div class="hero-poster">
+                        <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}">
+                    </div>
+                    <div class="hero-info">
+                        <div class="hero-badge">🔥 Новинка</div>
+                        <h2 class="hero-title">{{ anime.name_ru }}</h2>
+                        <p class="hero-desc">{{ anime.description|striptags|truncatechars:150 }}</p>
+
+                        <div class="hero-actions">
+                            <a href="{% url 'anime_detail' slug=anime.code %}" class="btn-watch">
+                                ▶ Смотреть
+                            </a>
+                            </div>
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <button class="hero-nav prev" onclick="moveSlide(-1)">❮</button>
+    <button class="hero-nav next" onclick="moveSlide(1)">❯</button>
+
+    <div class="hero-dots">
+        {% for anime in slider_anime %}
+            <span class="dot {% if forloop.first %}active{% endif %}" onclick="currentSlide({{ forloop.counter0 }})"></span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}

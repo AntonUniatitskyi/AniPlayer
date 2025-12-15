@@ -1,0 +1,458 @@
+{% extends 'base.html' %}
+
+{% block title %}Главная | Каталог{% endblock %}
+
+{% block content %}
+
+    <div class="content-wrapper">
+        {% include 'includes/hero_slider.html' %}
+
+        {% if user.is_authenticated and history %}
+            <div class="history-section">
+                <div class="history-header">
+                    <h2><span class="icon">↺</span> Продолжить просмотр</h2>
+                </div>
+
+                <div class="history-shelf">
+                    {% for item in history %}
+                        <a href="{% url 'anime_detail' slug=item.episode.anime.code %}" class="history-card">
+                            <div class="h-poster">
+                                {% if item.episode.anime.poster_path %}
+                                    <img src="{{ item.episode.anime.poster_path }}" alt="{{ item.episode.anime.name_ru }}">
+                                {% else %}
+                                    <div class="h-no-poster"></div>
+                                {% endif %}
+                                <div class="h-overlay">
+                                    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                                </div>
+                                {% if item.episode %}
+                                    <div class="h-badge">Серия {{ item.episode.ordinal }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="h-title">{{ item.episode.anime.name_ru }}</div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="page-header">
+            <h1>🔥 Свежие обновления</h1>
+            <p>Последние добавленные релизы</p>
+        </div>
+
+        <div class="anime-grid">
+            {% for anime in anime_list %}
+                <a href="{% url 'anime_detail' slug=anime.code %}" class="anime-card">
+                    <div class="poster-wrapper loading">
+                        {% if anime.poster_path %}
+                            <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}" loading="lazy" onload="this.parentElement.classList.remove('loading')">
+                        {% else %}
+                            <div class="no-poster"><span>Нет фото</span></div>
+                        {% endif %}
+                        <div class="card-overlay"><span class="play-icon">▶</span></div>
+                    </div>
+                    <div class="card-info">
+                        <h3 class="card-title">{{ anime.name_ru }}</h3>
+                        <div class="card-meta">
+                            {% if anime.updated_at %}
+                                <span class="date-badge">{{ anime.updated_at|date:"d.m.Y" }}</span>
+                            {% endif %}
+                        </div>
+                        <p class="card-desc">{{ anime.description|striptags|truncatechars:70 }}</p>
+                    </div>
+                </a>
+            {% empty %}
+                <div class="empty-state">
+                    <div class="empty-icon">📂</div>
+                    <h3>Тут пока пусто</h3>
+                    <p>Кажется, база данных еще не заполнена.</p>
+                    {% if user.is_staff %}
+                        <a href="/admin/" class="btn-primary">Перейти в админку</a>
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if is_paginated %}
+        <div class="pagination-wrapper">
+            <div class="pagination">
+                {% if page_obj.has_previous %}
+                    <a href="?page=1" class="page-link">&laquo;</a>
+                    <a href="?page={{ page_obj.previous_page_number }}" class="page-link">‹</a>
+                {% endif %}
+                <span class="page-info">Стр. {{ page_obj.number }}</span>
+                {% if page_obj.has_next %}
+                    <a href="?page={{ page_obj.next_page_number }}" class="page-link">›</a>
+                    <a href="?page={{ page_obj.paginator.num_pages }}" class="page-link">&raquo;</a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <style>
+        /* === HERO SLIDER === */
+        .hero-container {
+            position: relative;
+            width: 100%;
+            height: 450px; /* Высота слайдера */
+            overflow: hidden;
+            margin-bottom: 40px;
+            border-radius: 20px;
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+        }
+
+        .hero-slide {
+            position: absolute; inset: 0;
+            opacity: 0; transition: opacity 0.8s ease-in-out;
+            display: flex; align-items: center;
+        }
+        .hero-slide::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            /* Градиент: Слева (черный 90%) -> В центре (полупрозрачный) -> Справа (почти прозрачный) */
+            background: linear-gradient(90deg, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.6) 50%, rgba(0,0,0,0.2) 100%);
+            z-index: 1; /* Лежит поверх фона, но ПОД контентом */
+        }
+
+        .hero-slide.active { opacity: 1; z-index: 1; }
+
+        /* Фон с размытием */
+        .hero-bg {
+            position: absolute; inset: 0;
+            background-size: cover; background-position: center;
+            filter: blur(20px) brightness(0.4); /* Затемняем и блюрим */
+            transform: scale(1.1); /* Чтобы убрать белые края от блюра */
+            z-index: 0;
+        }
+
+        /* Контент поверх фона */
+        .hero-content {
+            position: relative; z-index: 2;
+            display: flex; align-items: center; gap: 40px;
+            max-width: 1200px; margin: 0 auto; padding: 0 40px;
+            width: 100%;
+        }
+
+        /* Постер в слайдере */
+        .hero-poster img {
+            width: 220px; border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            transform: translateY(20px); opacity: 0; transition: 0.8s;
+        }
+        .hero-slide.active .hero-poster img { transform: translateY(0); opacity: 1; }
+
+        /* Текст */
+        .hero-info { max-width: 600px; color: #fff; }
+
+        .hero-badge {
+            display: inline-block; background: var(--primary);
+            padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; font-weight: bold;
+            margin-bottom: 15px; box-shadow: 0 0 10px var(--primary);
+        }
+
+        .hero-title {
+            font-size: 3rem; margin: 0 0 15px 0; line-height: 1.1;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+            transform: translateY(20px); opacity: 0; transition: 0.8s 0.1s;
+        }
+        .hero-slide.active .hero-title { transform: translateY(0); opacity: 1; }
+
+        .hero-desc {
+            font-size: 1.1rem; opacity: 0.9; margin-bottom: 25px; line-height: 1.6;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+            display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+            transform: translateY(20px); opacity: 0; transition: 0.8s 0.2s;
+        }
+        .hero-slide.active .hero-desc { transform: translateY(0); opacity: 1; }
+
+        .btn-watch {
+            display: inline-flex; align-items: center; gap: 10px;
+            background: #fff; color: #000;
+            padding: 12px 30px; border-radius: 30px;
+            font-weight: 700; text-decoration: none; font-size: 1.1rem;
+            transition: 0.3s;
+            transform: translateY(20px); opacity: 0; transition: 0.8s 0.3s;
+        }
+        .hero-slide.active .btn-watch { transform: translateY(0); opacity: 1; }
+        .btn-watch:hover { background: var(--primary); color: #fff; transform: scale(1.05) !important; }
+
+        /* Навигация */
+        .hero-nav {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);
+            color: #fff; font-size: 1.5rem; width: 50px; height: 50px;
+            border-radius: 50%; cursor: pointer; z-index: 10;
+            transition: 0.2s; backdrop-filter: blur(5px);
+        }
+        .hero-nav:hover { background: var(--primary); }
+        .hero-nav.prev { left: 20px; }
+        .hero-nav.next { right: 20px; }
+
+        .hero-dots {
+            position: absolute; bottom: 20px; left: 0; right: 0;
+            display: flex; justify-content: center; gap: 10px; z-index: 10;
+        }
+        .dot {
+            width: 10px; height: 10px; background: rgba(255,255,255,0.3);
+            border-radius: 50%; cursor: pointer; transition: 0.3s;
+        }
+        .dot.active { background: #fff; transform: scale(1.3); }
+
+        /* Адаптив */
+        /* === АДАПТИВ СЛАЙДЕРА (MOBILE FIX) === */
+        @media (max-width: 768px) {
+            /* 1. Делаем слайдер высоким на весь экран (или 70% высоты) */
+            .hero-container {
+                height: 70vh; /* Высота 70% от экрана телефона */
+                min-height: 450px;
+                border-radius: 0; /* Убираем скругления, чтобы было от края до края */
+                margin-left: -20px; /* Компенсируем отступы wrapper'а */
+                margin-right: -20px;
+                width: calc(100% + 40px);
+                border: none;
+            }
+
+            /* 2. Меняем градиент: теперь он идет СНИЗУ (черный) ВВЕРХ (прозрачный) */
+            .hero-slide::after {
+                background: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%) !important;
+            }
+
+            /* 3. Центрируем фон, чтобы лицо персонажа было видно */
+            .hero-bg {
+                background-position: top center;
+            }
+
+            /* 4. Скрываем маленькую картинку-постер (фон и так есть, зачем дублировать?) */
+            .hero-poster {
+                display: none;
+            }
+
+            /* 5. Текст опускаем вниз и центрируем (или по левому краю) */
+            .hero-content {
+                flex-direction: column;
+                justify-content: flex-end; /* Прижимаем к низу */
+                align-items: flex-start; /* Текст слева */
+                height: 100%;
+                padding-bottom: 60px; /* Отступ под точки навигации */
+                text-align: left;
+            }
+
+            /* 6. Уменьшаем шрифты */
+            .hero-title {
+                font-size: 2rem;
+                margin-bottom: 10px;
+            }
+            .hero-desc {
+                font-size: 0.95rem;
+                -webkit-line-clamp: 3; /* Показываем только 3 строки описания */
+                margin-bottom: 15px;
+            }
+
+            /* 7. Кнопку делаем на всю ширину (удобно пальцем тыкать) */
+            .hero-actions { width: 100%; }
+            .btn-watch {
+                width: 100%;
+                justify-content: center;
+                padding: 14px;
+            }
+
+            /* Скрываем стрелки, оставляем только точки */
+            .hero-nav { display: none; }
+        }
+
+
+        .empty-icon { font-size: 4rem; margin-bottom: 15px; opacity: 0.5; }
+        .btn-primary {
+            display: inline-block; background: var(--primary); color: white;
+            padding: 10px 20px; border-radius: 8px; text-decoration: none;
+            margin-top: 15px; font-weight: 500; transition: 0.2s;
+        }
+        .btn-primary:hover { transform: translateY(-2px); opacity: 0.9; }
+
+        .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+
+        /* === СТИЛИ ИСТОРИИ (НОВЫЕ) === */
+        .history-section {
+            background: var(--surface-glass);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 20px 25px;
+            margin-bottom: 50px;
+            box-shadow: var(--shadow);
+            backdrop-filter: blur(10px);
+        }
+
+        .history-header h2 {
+            font-size: 1.2rem; margin: 0 0 15px 0; color: var(--text-main);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .history-header .icon { color: var(--primary); font-size: 1.4rem; }
+
+        .history-shelf {
+            display: flex; gap: 15px; overflow-x: auto; padding-bottom: 10px;
+            scroll-behavior: smooth;
+        }
+        /* Тонкий скроллбар */
+        .history-shelf::-webkit-scrollbar { height: 6px; }
+        .history-shelf::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+        .history-shelf::-webkit-scrollbar-track { background: transparent; }
+
+        .history-card {
+            min-width: 140px; width: 140px; /* Компактный размер */
+            text-decoration: none; color: inherit;
+            transition: transform 0.2s; position: relative;
+        }
+        .history-card:hover { transform: translateY(-5px); }
+
+        .h-poster {
+            width: 100%; aspect-ratio: 2/3; border-radius: 10px; overflow: hidden;
+            position: relative; margin-bottom: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .h-poster img { width: 100%; height: 100%; object-fit: cover; }
+
+        .h-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .history-card:hover .h-overlay { opacity: 1; }
+        .h-overlay svg { width: 40px; height: 40px; fill: #fff; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.5)); }
+
+        .h-badge {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: rgba(0,0,0,0.7); color: #fff;
+            font-size: 0.75rem; text-align: center; padding: 4px;
+            backdrop-filter: blur(4px);
+        }
+
+        .h-title {
+            font-size: 0.85rem; font-weight: 500; color: var(--text-sec);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            text-align: center;
+        }
+        .history-card:hover .h-title { color: var(--primary); }
+
+
+        /* === ОСТАЛЬНЫЕ СТИЛИ (ГЛАВНАЯ) === */
+        .page-header { text-align: center; margin-bottom: 40px; }
+        .page-header h1 {
+            font-size: 2.2rem; margin: 0 0 10px 0;
+            background: linear-gradient(45deg, var(--text-main), var(--primary));
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        .page-header p { color: var(--text-sec); margin: 0; }
+
+        .anime-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 25px; margin-bottom: 50px;
+        }
+
+        .anime-card {
+            background: var(--surface); border-radius: 12px; overflow: hidden;
+            text-decoration: none; color: inherit; display: flex; flex-direction: column;
+            border: 1px solid var(--border); transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .anime-card:hover {
+            transform: translateY(-7px); background: var(--input-bg);
+            box-shadow: 0 10px 20px rgba(187, 134, 252, 0.15); border-color: var(--primary);
+        }
+
+        .poster-wrapper { position: relative; padding-top: 145%; background: #000; overflow: hidden; }
+        .poster-wrapper img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s; }
+        .anime-card:hover .poster-wrapper img { transform: scale(1.05); }
+
+        .card-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.3s;
+        }
+        .anime-card:hover .card-overlay { opacity: 1; }
+        .play-icon { font-size: 2rem; color: #fff; background: var(--primary); width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; padding-left: 4px; }
+
+        .card-info { padding: 15px; flex-grow: 1; display: flex; flex-direction: column; }
+        .card-title { margin: 0 0 8px 0; font-size: 1rem; line-height: 1.3; font-weight: 600; color: var(--text-main); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .anime-card:hover .card-title { color: var(--primary); }
+
+        .card-meta { margin-bottom: 8px; font-size: 0.8rem; }
+        .date-badge { background: var(--input-bg); padding: 2px 6px; border-radius: 4px; color: var(--text-sec); }
+        .card-desc { margin: 0; font-size: 0.85rem; color: var(--text-sec); line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+        .no-poster { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--input-bg); color: var(--text-sec); }
+        .empty-state { grid-column: 1/-1; text-align: center; padding: 50px; background: var(--surface); border-radius: 12px; border: 1px solid var(--border); color: var(--text-sec); }
+
+        .pagination-wrapper { display: flex; justify-content: center; margin-top: 40px; }
+        .pagination { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 10px 20px; border-radius: 30px; box-shadow: var(--shadow); border: 1px solid var(--border); }
+        .page-link { display: flex; align-items: center; justify-content: center; width: 35px; height: 35px; background: var(--input-bg); border-radius: 50%; text-decoration: none; color: var(--text-main); transition: 0.2s; }
+        .page-link:hover { background: var(--primary); color: #fff; }
+        .page-info { color: var(--text-sec); margin: 0 10px; }
+
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+
+        /* Класс для загрузки */
+        .poster-wrapper.loading {
+            background: linear-gradient(90deg, #1f1f1f 25%, #2a2a2a 50%, #1f1f1f 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @media (max-width: 600px) {
+            .anime-grid { grid-template-columns: repeat(2, 1fr); gap: 15px; }
+            .card-desc { display: none; }
+            .history-card { min-width: 110px; width: 110px; } /* Еще меньше на мобилках */
+        }
+    </style>
+
+
+    <script>
+        // === HERO SLIDER LOGIC ===
+        let slideIndex = 0;
+        const slides = document.querySelectorAll('.hero-slide');
+        const dots = document.querySelectorAll('.dot');
+        let slideTimer;
+
+        function showSlide(n) {
+            if (slides.length === 0) return;
+
+            // Зацикливание
+            if (n >= slides.length) slideIndex = 0;
+            else if (n < 0) slideIndex = slides.length - 1;
+            else slideIndex = n;
+
+            // Убираем активный класс у всех
+            slides.forEach(s => s.classList.remove('active'));
+            dots.forEach(d => d.classList.remove('active'));
+
+            // Добавляем активному
+            slides[slideIndex].classList.add('active');
+            if(dots[slideIndex]) dots[slideIndex].classList.add('active');
+        }
+
+        function moveSlide(n) {
+            showSlide(slideIndex + n);
+            resetTimer();
+        }
+
+        function currentSlide(n) {
+            showSlide(n);
+            resetTimer();
+        }
+
+        function resetTimer() {
+            clearInterval(slideTimer);
+            slideTimer = setInterval(() => moveSlide(1), 5000); // Авто-смена каждые 5 сек
+        }
+
+        // Запуск
+        if (slides.length > 0) {
+            resetTimer();
+        }
+    </script>
+{% endblock %}
