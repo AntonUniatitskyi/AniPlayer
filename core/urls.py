@@ -19,6 +19,8 @@ from django.contrib import admin
 from django.urls import path
 from myanime import views
 from django.contrib.auth.views import LoginView, LogoutView
+from django.conf.urls.static import static
+from django.conf import settings
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -32,4 +34,4 @@ urlpatterns = [
     path('api/update-status/', views.update_status, name='update_status'),
     path('profile/library/', views.UserLibraryView.as_view(), name='library'),
     path('api/save-progress/', views.save_progress, name='save_progress')
-]
+] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
