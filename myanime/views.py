@@ -1,14 +1,18 @@
-from django.shortcuts import render
-from django.views.generic import ListView, DetailView, CreateView
+import json
+
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
-from django.urls import reverse_lazy
-from .models import AnimeTitle, Episode, UserAnimeList, EpisodeHistory
 from django.db.models import Q
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
+from django.shortcuts import render
+from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
-import json
+from django.views.generic import CreateView, DetailView, ListView
+
+from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList
+
 # Create your views here.
+
 
 def search_anime_api(request):
     query = request.GET.get('q', '')
@@ -34,6 +38,7 @@ class AnimeTitleListView(ListView):
     context_object_name = 'anime_list'
     ordering = ['-updated_at']
     paginate_by = 20
+
     def get_queryset(self):
         queryset = super().get_queryset()
         query = self.request.GET.get('q')
@@ -51,8 +56,8 @@ class AnimeTitleListView(ListView):
 
         # Если пользователь залогинен - достаем его историю
         context['slider_anime'] = AnimeTitle.objects.filter(
-                poster_path__isnull=False
-            ).exclude(poster_path='').order_by('-updated_at')[:5]
+            poster_path__isnull=False
+        ).exclude(poster_path='').order_by('-updated_at')[:5]
         if self.request.user.is_authenticated:
             raw_history = EpisodeHistory.objects.filter(
                 user=self.request.user
@@ -112,6 +117,7 @@ class AnimeTitleDetailView(DetailView):
                 print(f"Error fetching history: {e}")
         return context
 
+
 class RegisterView(CreateView):
     form_class = UserCreationForm
     template_name = 'registration/register.html'
@@ -129,7 +135,8 @@ def update_status(request):
         anime = AnimeTitle.objects.get(code=anime_code)
 
         if not status or status == 'none':
-            UserAnimeList.objects.filter(user=request.user, anime=anime).delete()
+            UserAnimeList.objects.filter(
+                user=request.user, anime=anime).delete()
             return JsonResponse({'status': 'removed'})
         UserAnimeList.objects.update_or_create(
             user=request.user,
