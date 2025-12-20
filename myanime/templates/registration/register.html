@@ -3,13 +3,15 @@
 {% block title %}Регистрация | AniParser{% endblock %}
 
 {% block content %}
-<div class="auth-background">
-    <div class="auth-container">
-        <div class="auth-card fade-in">
+<div class="auth-wrapper">
+    <div class="ambient-light one"></div>
+    <div class="ambient-light two reg-variant"></div>
 
+    <div class="auth-container reg-container">
+        <div class="auth-card fade-in">
             <div class="auth-header">
                 <h2>Создать аккаунт 🚀</h2>
-                <p>Присоединяйтесь к просмотру аниме!</p>
+                <p>Ваша личная библиотека аниме ждет!</p>
             </div>
 
             <form method="post" class="auth-form">
@@ -18,10 +20,8 @@
                 {% for field in form %}
                     <div class="form-group">
                         <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-
                         <div class="input-wrapper">
                             {{ field }}
-
                             {% if 'password' in field.name %}
                                 <button type="button" class="toggle-password" onclick="togglePassword(this)">
                                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
@@ -30,15 +30,11 @@
                         </div>
 
                         {% if field.help_text %}
-                            <div class="help-text">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <span>{{ field.help_text|safe }}</span>
-                            </div>
+                            <div class="help-text">{{ field.help_text|safe }}</div>
                         {% endif %}
 
                         {% if field.errors %}
                             <div class="error-msg">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 {{ field.errors.0 }}
                             </div>
                         {% endif %}
@@ -47,7 +43,6 @@
 
                 <button type="submit" class="auth-btn">
                     Зарегистрироваться
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
                 </button>
             </form>
 
@@ -58,121 +53,5 @@
     </div>
 </div>
 
-<style>
-    /* === СТИЛИ (Копия из login.html для единообразия) === */
-    .auth-background {
-        min-height: calc(100vh - 80px);
-        display: flex; justify-content: center; align-items: center;
-        position: relative; overflow: hidden;
-        padding: 40px 20px; /* Отступы для мобилок, чтобы форма не прилипала */
-    }
-
-    .auth-background::before, .auth-background::after {
-        content: ''; position: absolute; width: 300px; height: 300px;
-        background: var(--primary); filter: blur(100px); opacity: 0.15;
-        border-radius: 50%; z-index: -1;
-    }
-    .auth-background::before { top: -50px; left: -50px; }
-    .auth-background::after { bottom: -50px; right: -50px; background: #00d2ff; }
-
-    .auth-container { width: 100%; max-width: 460px; z-index: 1; } /* Чуть шире для регистрации */
-
-    .auth-card {
-        background: var(--surface-glass); backdrop-filter: blur(20px);
-        border: 1px solid var(--border); border-radius: 24px;
-        padding: 40px; box-shadow: 0 20px 50px rgba(0,0,0,0.2);
-    }
-
-    .fade-in { animation: fadeIn 0.6s ease-out forwards; opacity: 0; transform: translateY(20px); }
-    @keyframes fadeIn { to { opacity: 1; transform: translateY(0); } }
-
-    .auth-header { text-align: center; margin-bottom: 30px; }
-    .auth-header h2 {
-        margin: 0 0 10px; font-size: 1.8rem;
-        background: linear-gradient(45deg, var(--text-main), var(--primary));
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .auth-header p { margin: 0; color: var(--text-sec); font-size: 0.95rem; }
-
-    .form-group { margin-bottom: 25px; }
-    .form-group label { display: block; margin-bottom: 8px; color: var(--text-main); font-weight: 500; font-size: 0.9rem; margin-left: 5px; }
-
-    .input-wrapper { position: relative; }
-
-    .form-group input {
-        width: 100%; padding: 14px 16px; padding-right: 45px;
-        border-radius: 12px; background: var(--input-bg);
-        border: 2px solid transparent; color: var(--text-main);
-        font-size: 1rem; transition: all 0.3s ease; outline: none;
-    }
-    .form-group input:focus {
-        border-color: var(--primary); background: var(--surface);
-        box-shadow: 0 0 0 4px rgba(187, 134, 252, 0.1);
-    }
-
-    .toggle-password {
-        position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
-        background: none; border: none; color: var(--text-sec);
-        cursor: pointer; padding: 0; display: flex; transition: color 0.2s;
-    }
-    .toggle-password:hover { color: var(--primary); }
-
-    /* Стили подсказок (Help Text) */
-    .help-text {
-        margin-top: 8px; font-size: 0.8rem; color: var(--text-sec);
-        line-height: 1.4; display: flex; gap: 6px; align-items: flex-start;
-        background: rgba(255,255,255,0.03); padding: 8px; border-radius: 8px;
-    }
-    .help-text svg { flex-shrink: 0; margin-top: 2px; }
-
-    /* Скрытие списка ul внутри help_text (Django любит списки) */
-    .help-text ul { margin: 0; padding-left: 20px; }
-    .help-text li { margin-bottom: 2px; }
-
-    .error-msg {
-        display: flex; align-items: center; gap: 6px;
-        color: #ff6b6b; font-size: 0.85rem; margin-top: 8px; margin-left: 5px;
-        animation: shake 0.4s ease;
-    }
-
-    .auth-btn {
-        width: 100%; padding: 14px; background: var(--primary);
-        color: #fff; border: none; border-radius: 12px;
-        font-size: 1rem; font-weight: 600; cursor: pointer;
-        display: flex; justify-content: center; align-items: center; gap: 10px;
-        transition: all 0.3s ease; margin-top: 10px;
-        box-shadow: 0 5px 15px rgba(187, 134, 252, 0.3);
-    }
-    .auth-btn:hover {
-        background: var(--primary-hover); transform: translateY(-2px);
-        box-shadow: 0 8px 20px rgba(187, 134, 252, 0.4);
-    }
-
-    .auth-footer { text-align: center; margin-top: 25px; font-size: 0.95rem; color: var(--text-sec); }
-    .auth-footer a {
-        color: var(--primary); text-decoration: none; font-weight: 600;
-        margin-left: 5px; position: relative;
-    }
-    .auth-footer a::after {
-        content: ''; position: absolute; left: 0; bottom: -2px;
-        width: 0; height: 1px; background: var(--primary); transition: width 0.3s;
-    }
-    .auth-footer a:hover::after { width: 100%; }
-</style>
-
-<script>
-    function togglePassword(btn) {
-        // Ищем input внутри того же родителя (.input-wrapper), что и кнопка
-        const wrapper = btn.closest('.input-wrapper');
-        const input = wrapper.querySelector('input');
-
-        if (input.type === "password") {
-            input.type = "text";
-            btn.style.color = "var(--primary)";
-        } else {
-            input.type = "password";
-            btn.style.color = "";
-        }
-    }
-</script>
+{% include 'includes/auth_styles.html' %}
 {% endblock %}

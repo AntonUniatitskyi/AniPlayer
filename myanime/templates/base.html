@@ -1,247 +1,487 @@
 <!DOCTYPE html>
 <html lang="ru">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        {% load static %}
-        <link rel="icon" type="image/png" href="{% static 'img/favicon.png' %}?v=2">
-        <title>{% block title %}AniParser 🚀{% endblock %}</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% load static %}
+    <link rel="icon" type="image/png" href="{% static 'img/favicon.ico' %}?v=2">
+    <title>{% block title %}AniParser 🚀{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@700;900&display=swap" rel="stylesheet">
+    <link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}">
 
     <style>
         /* =========================================
-           1. ПЕРЕМЕННЫЕ И БАЗА
-           ========================================= */
+        1. ПЕРЕМЕННЫЕ И БАЗА (CINEMATIC DARK)
+        ========================================= */
         :root {
-            /* ТЕМНАЯ ТЕМА (DEFAULT) */
-            --primary: #bb86fc;
-            --primary-hover: #9965f4;
-            --bg-body: #121212;
-            --surface: #1e1e1e;
-            --surface-glass: rgba(30, 30, 30, 0.95);
-            --text-main: #ffffff;
-            --text-sec: #b0b0b0;
-            --border: rgba(255, 255, 255, 0.1);
-            --input-bg: rgba(255, 255, 255, 0.05);
-            --shadow: 0 4px 20px rgba(0,0,0,0.4);
+            /* PREMIUM DARK PALETTE */
+            --primary: #8b5cf6;
+            /* Современный фиолетовый */
+            --primary-glow: rgba(139, 92, 246, 0.5);
 
-            --glass-bg: rgba(20, 20, 30, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.1);
-            --glass-inner-bg: rgba(255, 255, 255, 0.05);
-            --glass-input-bg: rgba(0, 0, 0, 0.3);
+            --bg-body: #09090b;
+            /* Почти черный, Zinc-950 */
+            --surface: #18181b;
+            /* Zinc-900 */
+            --surface-hover: #27272a;
+
+            --text-main: #f4f4f5;
+            /* Zinc-100 */
+            --text-sec: #a1a1aa;
+            /* Zinc-400 */
+
+            /* Тонкие границы вместо теней */
+            --border: rgba(255, 255, 255, 0.08);
+            --border-hover: rgba(255, 255, 255, 0.2);
+
+            --input-bg: #27272a;
+
+            /* Мягкие тени */
+            --shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.5);
+
+            /* Стеклянные эффекты (отключены для FPS, заменены плотным цветом) */
+            --glass-bg: rgba(24, 24, 27, 0.98);
         }
 
         body.light-theme {
-            /* СВЕТЛАЯ ТЕМА */
-            --primary: #7f39fb;
-            --primary-hover: #6200ee;
-            --bg-body: #f0f2f5;
+            --primary: #7c3aed;
+            --primary-glow: rgba(124, 58, 237, 0.3);
+            --bg-body: #f8fafc;
             --surface: #ffffff;
-            --surface-glass: rgba(255, 255, 255, 0.95);
-            --text-main: #1c1c1c;
-            --text-sec: #666666;
-            --border: rgba(0, 0, 0, 0.1);
-            --input-bg: rgba(0, 0, 0, 0.05);
-            --shadow: 0 4px 15px rgba(0,0,0,0.1);
-
-            --glass-bg: rgba(255, 255, 255, 0.75);
-            --glass-border: rgba(0, 0, 0, 0.1);
-            --glass-inner-bg: rgba(0, 0, 0, 0.03);
-            --glass-input-bg: rgba(255, 255, 255, 0.9);
+            --surface-hover: #f1f5f9;
+            --text-main: #0f172a;
+            --text-sec: #64748b;
+            --border: rgba(0, 0, 0, 0.08);
+            --border-hover: rgba(0, 0, 0, 0.2);
+            --input-bg: #e2e8f0;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            --glass-bg: rgba(255, 255, 255, 0.95);
         }
 
-        *, *::before, *::after { box-sizing: border-box; }
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+        }
+
+        /* Кастомный скроллбар */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-body);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #3f3f46;
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--primary);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background-color: var(--bg-body);
             color: var(--text-main);
-            margin: 0; padding: 0;
-            display: flex; flex-direction: column; min-height: 100vh;
-            transition: background-color 0.3s ease, color 0.3s ease;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
         }
 
-        main { flex: 1; width: 100%; }
+        main {
+            flex: 1;
+            width: 100%;
+        }
 
         /* =========================================
-           2. ШАПКА (HEADER) - ОБНОВЛЕННАЯ
-           ========================================= */
+        2. ШАПКА (HEADER)
+        ========================================= */
         header {
-            position: sticky; top: 0; z-index: 1000;
-            background: var(--surface-glass);
-            backdrop-filter: blur(12px);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: var(--glass-bg);
             border-bottom: 1px solid var(--border);
-            padding: 10px 0;
-            transition: background 0.3s ease;
+            padding: 12px 0;
         }
 
         .header-container {
-            max-width: 1200px; margin: 0 auto; padding: 0 15px;
+            max-width: 1240px;
+            margin: 0 auto;
+            padding: 0 20px;
             display: grid;
-            grid-template-columns: auto 1fr auto; /* Лого - Поиск - Меню */
-            align-items: center; gap: 20px;
+            grid-template-columns: auto 1fr auto;
+            align-items: center;
+            gap: 30px;
         }
 
         .logo {
-            font-size: 1.3rem; font-weight: 700; color: var(--text-main);
-            text-decoration: none; display: flex; align-items: center; gap: 8px;
-            white-space: nowrap; flex-shrink: 0;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            color: var(--text-main);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-transform: uppercase;
         }
-        .logo span { color: var(--primary); font-size: 1.5rem; }
 
-        /* ПОИСК */
-        .search-wrapper { position: relative; width: 100%; max-width: 450px; justify-self: center; }
+        .logo span {
+            color: var(--primary);
+            font-size: 1.4rem;
+            filter: drop-shadow(0 0 8px var(--primary-glow));
+        }
+
+        .search-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            justify-self: center;
+        }
 
         .search-form {
-            display: flex; background: var(--input-bg);
-            border-radius: 50px; padding: 6px 15px;
-            border: 1px solid transparent; width: 100%; transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            background: var(--input-bg);
+            border-radius: 12px;
+            padding: 8px 16px;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
         }
-        .search-form:focus-within { background: var(--surface); border-color: var(--primary); box-shadow: 0 0 15px rgba(187, 134, 252, 0.15); }
 
-        .search-input { width: 100%; background: transparent; border: none; color: var(--text-main); outline: none; font-size: 0.95rem; }
-        .search-btn { background: none; border: none; color: var(--text-sec); cursor: pointer; padding: 0; display: flex; align-items: center; transition: 0.2s; }
-        .search-btn:hover { color: var(--primary); transform: scale(1.1); }
-
-        /* ВЫПАДАЮЩИЙ СПИСОК ПОИСКА */
-        .search-dropdown {
-            position: absolute; top: 115%; left: 0; width: 100%;
-            background: var(--surface); border: 1px solid var(--border);
-            border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            overflow: hidden; display: none; z-index: 1001;
+        .search-form:focus-within {
+            background: var(--bg-body);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px var(--primary-glow);
         }
-        .search-dropdown.active { display: block; animation: slideDown 0.2s ease; }
 
-        .search-result-item {
-            display: flex; align-items: center; gap: 12px; padding: 10px 15px;
-            text-decoration: none; color: var(--text-main);
-            border-bottom: 1px solid var(--border); transition: background 0.2s;
+        .search-input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-weight: 500;
+            outline: none;
         }
-        .search-result-item:last-child { border-bottom: none; }
-        .search-result-item:hover { background: var(--input-bg); }
-        .search-result-item img { width: 40px; height: 60px; object-fit: cover; border-radius: 4px; flex-shrink: 0; }
-        .result-info { display: flex; flex-direction: column; overflow: hidden; }
-        .result-title { font-size: 0.9rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .result-hint { font-size: 0.75rem; color: var(--text-sec); }
-        .no-results { padding: 15px; text-align: center; color: var(--text-sec); font-size: 0.9rem; }
 
-        /* ПРАВАЯ ЧАСТЬ (МЕНЮ) */
-        .nav-actions { display: flex; align-items: center; gap: 10px; }
-
-        .theme-toggle {
-            width: 38px; height: 38px; background: transparent; border: 1px solid var(--border);
-            border-radius: 50%; display: flex; align-items: center; justify-content: center;
-            color: var(--text-main); cursor: pointer; transition: 0.2s;
+        .search-input::placeholder {
+            color: var(--text-sec);
+            opacity: 0.7;
         }
-        .theme-toggle:hover { background: var(--input-bg); border-color: var(--text-sec); }
 
-        /* Иконка профиля */
-        .profile-btn-icon {
-            width: 38px; height: 38px; border-radius: 50%;
-            background: var(--primary); color: #fff;
-            display: flex; align-items: center; justify-content: center;
-            text-decoration: none; font-weight: bold; font-size: 0.95rem;
-            border: 2px solid var(--surface); box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        .search-btn {
+            background: none;
+            border: none;
+            color: var(--text-sec);
+            cursor: pointer;
+            padding: 0;
+            display: flex;
             transition: 0.2s;
         }
-        .profile-btn-icon:hover { transform: scale(1.05); }
 
-        /* Текстовые ссылки (скрываем на мобилке) */
-        .desktop-auth { display: flex; align-items: center; gap: 15px; margin-left: 5px; }
-        .auth-link-btn { color: var(--text-main); text-decoration: none; font-size: 0.9rem; font-weight: 500; cursor: pointer; background: none; border: none; padding: 0; font-family: inherit; }
-        .auth-link-btn:hover { color: var(--primary); }
-
-        /* Иконки темы */
-        .icon-sun { display: none; }
-        body.light-theme .icon-moon { display: none; }
-        body.light-theme .icon-sun { display: block; }
-
-
-        /* =========================================
-           3. АДАПТИВ ШАПКИ И СЛАЙДЕРА
-           ========================================= */
-        @media (max-width: 768px) {
-            /* Хедер в 2 строки */
-            .header-container {
-                display: flex; flex-wrap: wrap;
-                justify-content: space-between; gap: 10px;
-            }
-            .logo { order: 1; font-size: 1.2rem; }
-            .nav-actions { order: 2; margin-left: auto; gap: 8px; }
-            .search-wrapper { order: 3; width: 100%; max-width: 100%; margin-top: 5px; }
-
-            /* Скрываем текст, оставляем иконки */
-            .desktop-auth { display: none; }
-
-            /* Исправление Слайдера (Hero) */
-            .hero-container {
-                height: 70vh; min-height: 450px;
-                border-radius: 0; margin-left: -20px; margin-right: -20px; width: calc(100% + 40px); border: none;
-            }
-            .hero-slide::after { background: linear-gradient(0deg, rgba(0,0,0,1) 0%, rgba(0,0,0,0.6) 40%, rgba(0,0,0,0) 100%) !important; }
-            .hero-bg { background-position: top center; }
-            .hero-poster { display: none; }
-            .hero-content { flex-direction: column; justify-content: flex-end; align-items: flex-start; height: 100%; padding-bottom: 60px; text-align: left; }
-            .hero-title { font-size: 2rem; margin-bottom: 10px; }
-            .hero-desc { font-size: 0.95rem; -webkit-line-clamp: 3; margin-bottom: 15px; }
-            .hero-actions { width: 100%; }
-            .btn-watch { width: 100%; justify-content: center; padding: 14px; }
-            .hero-nav { display: none; }
+        .search-btn:hover {
+            color: var(--text-main);
         }
 
+        /* DROPDOWN */
+        .search-dropdown {
+            position: absolute;
+            top: calc(100% + 8px);
+            left: 0;
+            width: 100%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            display: none;
+            z-index: 1001;
+        }
 
-        /* =========================================
-           4. ЭЛЕМЕНТЫ ИНТЕРФЕЙСА (Toasts, Breadcrumbs, Footer)
-           ========================================= */
+        .search-dropdown.active {
+            display: block;
+            animation: fadeIn 0.15s ease-out;
+        }
 
-        /* УВЕДОМЛЕНИЯ (TOASTS) */
-        #toast-container { position: fixed; bottom: 30px; right: 30px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
-        .toast {
-            pointer-events: auto; min-width: 250px;
-            background: var(--surface); border: 1px solid var(--border);
-            border-left: 4px solid var(--primary); color: var(--text-main);
-            padding: 15px 20px; border-radius: 8px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            display: flex; align-items: center; gap: 12px; font-size: 0.95rem;
-            animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), fadeOut 0.5s ease 3.5s forwards;
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 12px 16px;
+            text-decoration: none;
+            color: var(--text-main);
+            border-bottom: 1px solid var(--border);
+            transition: 0.15s;
+        }
+
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        .search-result-item:hover {
+            background: var(--surface-hover);
+        }
+
+        .search-result-item img {
+            width: 40px;
+            height: 56px;
+            border-radius: 6px;
+            object-fit: cover;
+        }
+
+        .result-title {
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+
+        .result-hint {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 500;
+        }
+
+        .no-results {
+            padding: 20px;
+            text-align: center;
+            color: var(--text-sec);
+            font-size: 0.9rem;
+        }
+
+        /* КНОПКИ МЕНЮ */
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .theme-toggle,
+        .profile-btn-icon {
+            width: 40px;
+            height: 40px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-sec);
             cursor: pointer;
+            transition: 0.2s;
+            text-decoration: none;
         }
-        .toast.success { border-left-color: #4caf50; }
-        .toast.error { border-left-color: #ff5252; }
-        .toast-icon { font-size: 1.2rem; }
 
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes fadeOut { to { opacity: 0; transform: translateY(10px); } }
-        @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .theme-toggle:hover,
+        .profile-btn-icon:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+            background: var(--surface-hover);
+            transform: translateY(-1px);
+        }
 
-        /* ХЛЕБНЫЕ КРОШКИ */
+        .profile-btn-icon {
+            color: var(--text-main);
+            font-weight: 700;
+            font-size: 0.9rem;
+        }
+
+        .auth-link-btn {
+            color: var(--text-sec);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
+            transition: 0.2s;
+        }
+
+        .auth-link-btn:hover {
+            color: var(--text-main);
+        }
+
+        .icon-sun {
+            display: none;
+        }
+
+        body.light-theme .icon-moon {
+            display: none;
+        }
+
+        body.light-theme .icon-sun {
+            display: block;
+        }
+
         .breadcrumbs {
-            display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-            margin-bottom: 25px; font-size: 0.9rem; color: var(--text-sec);
-            background: var(--surface-glass); padding: 10px 20px;
-            border-radius: 12px; border: 1px solid var(--border);
-            backdrop-filter: blur(10px); width: fit-content;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 30px;
+            font-size: 0.85rem;
+            color: var(--text-sec);
+            padding: 0;
         }
-        .breadcrumbs a { color: var(--text-sec); text-decoration: none; transition: color 0.2s ease; display: flex; align-items: center; gap: 6px; }
-        .breadcrumbs a:hover { color: var(--primary); }
-        .breadcrumbs .separator { color: var(--border); font-size: 0.8rem; }
-        .breadcrumbs .current { color: var(--text-main); font-weight: 500; pointer-events: none; }
+
+        .breadcrumbs a {
+            color: var(--text-sec);
+            text-decoration: none;
+            transition: color 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-weight: 500;
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--text-main);
+        }
+
+        .breadcrumbs .separator {
+            color: var(--border-hover);
+            font-size: 0.8rem;
+        }
+
+        .breadcrumbs .current {
+            color: var(--text-main);
+            font-weight: 600;
+            pointer-events: none;
+        }
 
         @media (max-width: 600px) {
-            .breadcrumbs { font-size: 0.8rem; padding: 8px 15px; width: 100%; }
+            .breadcrumbs {
+                font-size: 0.8rem;
+                margin-bottom: 20px;
+            }
         }
 
-        /* ФУТЕР */
         footer {
-            background: var(--surface); border-top: 1px solid var(--border);
-            padding: 30px 0; margin-top: auto; text-align: center;
-            color: var(--text-sec); font-size: 0.9rem;
+            border-top: 1px solid var(--border);
+            padding: 40px 0;
+            margin-top: auto;
+            text-align: center;
+            color: var(--text-sec);
+            font-size: 0.85rem;
         }
 
+        #toast-container {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            pointer-events: auto;
+            min-width: 280px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-left: 4px solid var(--primary);
+            color: var(--text-main);
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            animation: slideIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .toast.success {
+            border-left-color: #10b981;
+        }
+
+        .toast.error {
+            border-left-color: #ef4444;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-5px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* АДАПТИВ HEADER */
+        @media (max-width: 768px) {
+            .header-container {
+                gap: 15px;
+            }
+
+            .search-wrapper {
+                order: 3;
+                max-width: 100%;
+                margin-top: 10px;
+            }
+
+            .logo {
+                font-size: 1.1rem;
+            }
+
+            .desktop-auth {
+                display: none;
+            }
+        }
+
+        .is-scrolling {
+            pointer-events: none;
+        }
+
+        .is-scrolling .anime-card,
+        .is-scrolling .poster-wrapper img {
+            pointer-events: none !important;
+        }
+
+        .is-scrolling .anime-card:hover {
+            transform: none !important;
+            box-shadow: none !important;
+        }
     </style>
 </head>
+
 <body>
 
     <header>
@@ -250,9 +490,13 @@
 
             <div class="search-wrapper">
                 <form action="{% url 'home' %}" method="get" class="search-form" autocomplete="off">
-                    <input id="searchInput" type="text" name="q" class="search-input" placeholder="Найти аниме..." value="{{ request.GET.q }}">
+                    <input id="searchInput" type="text" name="q" class="search-input" placeholder="Найти аниме..."
+                        value="{{ request.GET.q }}">
                     <button type="submit" class="search-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" fill="none"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" fill="none">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
                     </button>
                 </form>
                 <div id="searchResults" class="search-dropdown"></div>
@@ -261,28 +505,48 @@
             <div class="nav-actions">
 
                 <button class="theme-toggle" id="themeBtn" title="Сменить тему">
-                    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
-                    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                    </svg>
+                    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                        stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <line x1="12" y1="1" x2="12" y2="3"></line>
+                        <line x1="12" y1="21" x2="12" y2="23"></line>
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+                        <line x1="1" y1="12" x2="3" y2="12"></line>
+                        <line x1="21" y1="12" x2="23" y2="12"></line>
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+                    </svg>
                 </button>
 
                 {% if user.is_authenticated %}
-                    <a href="{% url 'library' %}" class="profile-btn-icon" title="Личный кабинет">
-                        {{ user.username|make_list|first|upper }}
-                    </a>
-                    <div class="desktop-auth">
-                         <form action="{% url 'logout' %}" method="post" style="display:inline;">
-                             {% csrf_token %}
-                             <button type="submit" class="auth-link-btn" style="color: #ff6b6b;">Выйти</button>
-                         </form>
-                    </div>
+                <a href="{% url 'library' %}" class="profile-btn-icon" title="Личный кабинет">
+                    {{ user.username|make_list|first|upper }}
+                </a>
+                <div class="desktop-auth">
+                    <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="auth-link-btn" style="color: #ff6b6b;">Выйти</button>
+                    </form>
+                </div>
                 {% else %}
-                    <div class="desktop-auth">
-                        <a href="{% url 'login' %}" class="auth-link-btn">Войти</a>
-                        <a href="{% url 'register' %}" class="auth-link-btn" style="color: var(--primary);">Регистрация</a>
-                    </div>
-                    <a href="{% url 'login' %}" class="profile-btn-icon" style="background: var(--surface); border-color: var(--border); color: var(--text-main);" title="Войти">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-                    </a>
+                <div class="desktop-auth">
+                    <a href="{% url 'login' %}" class="auth-link-btn">Войти</a>
+                    <a href="{% url 'register' %}" class="auth-link-btn" style="color: var(--primary);">Регистрация</a>
+                </div>
+                <a href="{% url 'login' %}" class="profile-btn-icon"
+                    style="background: var(--surface); border-color: var(--border); color: var(--text-main);"
+                    title="Войти">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+                        <polyline points="10 17 15 12 10 7"></polyline>
+                        <line x1="15" y1="12" x2="3" y2="12"></line>
+                    </svg>
+                </a>
                 {% endif %}
             </div>
         </div>
@@ -290,10 +554,13 @@
 
     <main>{% block content %}{% endblock %}</main>
 
-    <footer><div class="header-container"><p>&copy; 2025 AniParser Project. Created with Django & Python.</p></div></footer>
+    <footer>
+        <div class="header-container">
+            <p>&copy; 2025 AniParser Project. Created with Django & Python.</p>
+        </div>
+    </footer>
 
     <script>
-        // === ЛОГИКА ТЕМЫ ===
         const themeBtn = document.getElementById('themeBtn');
         const body = document.body;
         const savedTheme = localStorage.getItem('theme');
@@ -303,15 +570,12 @@
             localStorage.setItem('theme', body.classList.contains('light-theme') ? 'light' : 'dark');
         });
 
-        // === ЖИВОЙ ПОИСК ===
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
         let debounceTimer;
 
-        searchInput.addEventListener('input', function() {
+        searchInput.addEventListener('input', function () {
             const query = this.value.trim();
-
-            // Очищаем предыдущий таймер (Debounce - чтобы не долбить сервер на каждую букву)
             clearTimeout(debounceTimer);
 
             if (query.length < 2) {
@@ -320,7 +584,6 @@
                 return;
             }
 
-            // Ждем 300мс после окончания ввода, прежде чем слать запрос
             debounceTimer = setTimeout(() => {
                 fetch(`/api/search/?q=${encodeURIComponent(query)}`)
                     .then(response => response.json())
@@ -351,21 +614,18 @@
             }, 300);
         });
 
-        // Скрывать результаты при клике вне поиска
-        document.addEventListener('click', function(e) {
+        document.addEventListener('click', function (e) {
             if (!searchInput.contains(e.target) && !searchResults.contains(e.target)) {
                 searchResults.classList.remove('active');
             }
         });
 
-        // Показывать снова при фокусе, если там есть текст
-        searchInput.addEventListener('focus', function() {
+        searchInput.addEventListener('focus', function () {
             if (this.value.length >= 2 && searchResults.children.length > 0) {
                 searchResults.classList.add('active');
             }
         });
 
-        // Функция вызова уведомления
         function showToast(message, type = 'normal') {
             const container = document.getElementById('toast-container');
             const toast = document.createElement('div');
@@ -377,18 +637,26 @@
 
             toast.innerHTML = `<span class="toast-icon">${icon}</span> <span>${message}</span>`;
 
-            // Удаление при клике
             toast.onclick = () => toast.remove();
-
             container.appendChild(toast);
-
-            // Авто-удаление через 3 секунды (соответствует анимации)
             setTimeout(() => {
                 toast.remove();
             }, 3000);
         }
 
-        // Пример использования: showToast('Добавлено в "Смотрю"', 'success');
+    </script>
+    <script>
+        let isScrolling;
+        window.addEventListener('scroll', function (event) {
+            if (!document.body.classList.contains('is-scrolling')) {
+                document.body.classList.add('is-scrolling');
+            }
+            window.clearTimeout(isScrolling);
+            isScrolling = setTimeout(function () {
+                document.body.classList.remove('is-scrolling');
+            }, 200);
+
+        }, { passive: true });
     </script>
     <div id="toast-container"></div>
 </body>

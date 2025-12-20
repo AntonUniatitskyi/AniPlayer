@@ -155,7 +155,7 @@ class UserLibraryView(ListView):
 
     def get_queryset(self):
         if not self.request.user.is_authenticated:
-            return []
+            return UserAnimeList.objects.none()
         return UserAnimeList.objects.filter(user=self.request.user).select_related('anime')
 
     def get_context_data(self, **kwargs):
@@ -165,6 +165,15 @@ class UserLibraryView(ListView):
         context['planned'] = items.filter(status='planned')
         context['completed'] = items.filter(status='completed')
         context['dropped'] = items.filter(status='dropped')
+
+        from_anime_code = self.request.GET.get('from_anime')
+        if from_anime_code:
+            try:
+                context['prev_anime'] = AnimeTitle.objects.get(
+                    code=from_anime_code)
+            except AnimeTitle.DoesNotExist:
+                pass
+
         return context
 
 

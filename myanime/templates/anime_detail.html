@@ -7,23 +7,41 @@
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
-    <div class="backdrop" style="background-image: url('{{ anime.poster_path }}');"></div>
+    <div class="anime-backdrop">
+        <div class="backdrop-image" style="background-image: url('{{ anime.poster_path }}');"></div>
+        <div class="backdrop-gradient"></div>
+    </div>
 
-    <div class="content-wrapper">
+    <div class="content-wrapper detail-page">
         <nav class="breadcrumbs">
             <a href="{% url 'home' %}">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                </svg>
                 Главная
             </a>
+            <span class="separator">/</span>
+
+            {% if request.GET.ref == 'library' %}
+                <a href="{% url 'library' %}">Моя библиотека</a>
+            {% else %}
+                <a href="{% url 'home' %}">Каталог</a>
+            {% endif %}
+
             <span class="separator">/</span>
             <span class="current">{{ anime.name_ru }}</span>
         </nav>
 
         <div class="anime-hero">
             <div class="poster-container">
-                {% if anime.poster_path %}
-                    <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}" class="main-poster">
-                {% endif %}
+                <div class="poster-card">
+                    {% if anime.poster_path %}
+                        <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}" class="main-poster">
+                    {% else %}
+                        <div class="no-poster-placeholder"></div>
+                    {% endif %}
+                </div>
             </div>
 
             <div class="info-container">
@@ -32,53 +50,63 @@
                     <h2 class="anime-subtitle">{{ anime.name_en }}</h2>
                 {% endif %}
 
-                {% if user.is_authenticated %}
-                    <div class="status-wrapper">
-                        <select id="statusSelect" class="status-select" onchange="changeStatus(this, '{{ anime.code }}')">
-                            <option value="none" {% if not user_status %}selected{% endif %}>➕ Добавить в список</option>
-                            <option value="watching" {% if user_status == 'watching' %}selected{% endif %}>👀 Смотрю</option>
-                            <option value="planned" {% if user_status == 'planned' %}selected{% endif %}>📅 В планах</option>
-                            <option value="completed" {% if user_status == 'completed' %}selected{% endif %}>✅ Просмотрено</option>
-                            <option value="dropped" {% if user_status == 'dropped' %}selected{% endif %}>🗑 Брошено</option>
-                            <option value="none" class="remove-option">❌ Убрать из списка</option>
-                        </select>
-                    </div>
-                {% endif %}
-
                 <div class="meta-tags">
+                    {% if anime.updated_at %}
+                        <span class="tag year">{{ anime.updated_at|date:"Y" }}</span>
+                    {% endif %}
                     <span class="tag">ID: {{ anime.anilibria_id }}</span>
-                    <span class="tag">Обновлено: {{ anime.updated_at|date:"d.m.Y" }}</span>
                 </div>
+
                 <div class="description-box">
                     <p>{{ anime.description }}</p>
                 </div>
+
+                {% if user.is_authenticated %}
+                    <div class="status-wrapper">
+                        <div class="custom-select-wrapper">
+                            <select id="statusSelect" class="status-select" onchange="changeStatus(this, '{{ anime.code }}')">
+                                <option value="none" {% if not user_status %}selected{% endif %}>➕ Добавить в список</option>
+                                <option value="watching" {% if user_status == 'watching' %}selected{% endif %}>👀 Смотрю</option>
+                                <option value="planned" {% if user_status == 'planned' %}selected{% endif %}>📅 В планах</option>
+                                <option value="completed" {% if user_status == 'completed' %}selected{% endif %}>✅ Просмотрено</option>
+                                <option value="dropped" {% if user_status == 'dropped' %}selected{% endif %}>🗑 Брошено</option>
+                                <option value="none" class="remove-option">❌ Убрать</option>
+                            </select>
+                            <!-- <span class="select-arrow">▼</span> -->
+                        </div>
+                    </div>
+                {% endif %}
             </div>
         </div>
 
         {% if anime.episodes.exists %}
         <div class="player-section" id="watch">
-            <h3 class="section-title">▶ Смотреть онлайн</h3>
-
             <div class="cinema-container">
                 <div class="video-wrapper">
                     <video id="player" controls crossorigin playsinline></video>
-                    <button id="skipOp" class="skip-overlay-btn" style="display: none;">
-                        Пропустить опенинг
-                    </button>
-                    <button id="skipEd" class="skip-overlay-btn" style="display: none;">
-                        Пропустить эндинг
-                    </button>
+
+                    <div class="skip-buttons-container">
+                        <button id="skipOp" class="skip-btn" style="display: none;">
+                            Пропустить опенинг <span class="skip-arrow">→</span>
+                        </button>
+                        <button id="skipEd" class="skip-btn" style="display: none;">
+                            Пропустить эндинг <span class="skip-arrow">→</span>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="playlist-sidebar">
                     <div class="playlist-header">
-                        <span>Эпизоды ({{ anime.episodes.count }})</span>
+                        <span class="ph-title">Эпизоды</span>
+                        <span class="ph-count">{{ anime.episodes.count }}</span>
                     </div>
 
                     <div class="playlist-controls">
-                        <input type="text" id="epSearch" placeholder="Найти серию..." autocomplete="off">
-                        <div id="rangeContainer" class="range-container">
-                            </div>
+                        <div class="search-wrap">
+                            <input type="text" id="epSearch" placeholder="Найти серию..." autocomplete="off">
+                            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                        </div>
+                        <div id="rangeContainer" class="range-container"></div>
                     </div>
 
                     <div class="episode-list-wrapper">
@@ -88,6 +116,7 @@
                                     class="ep-row"
                                     data-id="{{ episode.id }}"
                                     data-ordinal="{{ episode.ordinal }}"
+
                                     data-480="{{ episode.hls_480|default:'' }}"
                                     data-720="{{ episode.hls_720|default:'' }}"
                                     data-1080="{{ episode.hls_1080|default:'' }}"
@@ -99,11 +128,9 @@
 
                                     onclick="selectEpisode(this)">
 
-                                    <span class="ep-icon">
-                                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                    </span>
-                                    <span class="ep-text">Эпизод {{ episode.ordinal }}</span>
-                                    <span class="ep-status"></span>
+                                    <span class="ep-number">{{ episode.ordinal }}</span>
+                                    <span class="ep-info">Серия {{ episode.ordinal }}</span>
+                                    <span class="ep-play-icon">▶</span>
                                 </button>
                             {% endfor %}
                         </div>
@@ -114,199 +141,203 @@
         </div>
         {% else %}
             <div class="no-content">
-                <h3>Серии скоро появятся...</h3>
-                <p>Мы работаем над загрузкой контента.</p>
+                <div class="empty-icon">⏳</div>
+                <h3>Серии скоро появятся</h3>
+                <p>Мы уже работаем над загрузкой контента для этого тайтла.</p>
             </div>
         {% endif %}
     </div>
 
     <style>
-    body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; }
+    /* === ОСНОВА === */
+    body { background-color: var(--bg-body); color: var(--text-main); font-family: 'Inter', sans-serif; margin: 0; }
 
-    .backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; background-size: cover; background-position: center; filter: blur(80px) brightness(0.3); z-index: -1; opacity: 0.5; }
-    .content-wrapper { max-width: 1200px; margin: 0 auto; padding: 20px; position: relative; }
+    /* Фон: В светлой теме градиент уходит в светлый, текст читается */
+    .anime-backdrop {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: -1;
+        pointer-events: none;
+    }
+    .backdrop-image {
+        width: 100%; height: 100%; background-size: cover; background-position: center top;
+        filter: blur(60px) brightness(0.5); opacity: 0.5; /* Чуть темнее для контраста */
+        transform: scale(1.1);
+    }
+    .backdrop-gradient {
+        position: absolute; inset: 0;
+        background: linear-gradient(to bottom, var(--bg-body) 0%, transparent 40%, var(--bg-body) 100%);
+    }
 
-    .btn-back { display: inline-flex; align-items: center; gap: 8px; color: var(--text-sec); text-decoration: none; margin-bottom: 20px; font-weight: 500; transition: color 0.2s; }
-    .btn-back:hover { color: var(--primary); }
+    .content-wrapper.detail-page {
+        max-width: 1280px; padding: 30px 20px; position: relative; z-index: 1; margin: 0 auto;
+    }
 
-    /* === ШАПКА АНИМЕ === */
-    .anime-hero { display: grid; grid-template-columns: 280px 1fr; gap: 40px; margin-bottom: 50px; background: var(--surface-glass); backdrop-filter: blur(10px); padding: 30px; border-radius: 20px; box-shadow: var(--shadow); border: 1px solid var(--border); }
-    .main-poster { width: 100%; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+    /* === ГЕРОЙ === */
+    .anime-hero {
+        display: flex; gap: 40px; margin-bottom: 50px; align-items: flex-start;
+    }
 
-    .info-container { display: flex; flex-direction: column; }
-    .anime-title { margin: 0; font-size: 2.5rem; line-height: 1.1; color: var(--text-main); }
-    .anime-subtitle { margin: 5px 0 20px; color: var(--text-sec); font-weight: 400; font-size: 1.2rem; }
+    .poster-container { flex-shrink: 0; width: 260px; }
+    .poster-card {
+        border-radius: 16px; overflow: hidden;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.3); /* Тень мягче */
+        border: 1px solid var(--border);
+        background: var(--surface);
+    }
+    .main-poster { width: 100%; display: block; object-fit: cover; aspect-ratio: 455/650; }
 
-    /* === СТАТУС === */
-    .status-wrapper { margin-bottom: 20px; }
+    .info-container { flex-grow: 1; padding-top: 5px; min-width: 0; }
+
+    .anime-title {
+        font-size: 2.8rem; font-weight: 800; line-height: 1.1; margin: 0 0 10px 0;
+        color: var(--text-main); /* Адаптивный цвет! */
+        letter-spacing: -0.02em;
+        text-shadow: 0 0 30px var(--bg-body); /* Свечение под цвет фона для читаемости */
+    }
+    .anime-subtitle {
+        font-size: 1.2rem; font-weight: 400; color: var(--text-sec); margin: 0 0 20px 0;
+    }
+
+    .meta-tags { display: flex; gap: 10px; margin-bottom: 25px; flex-wrap: wrap; }
+    .tag {
+        background: var(--surface); /* Адаптивный фон */
+        padding: 5px 12px; border-radius: 8px; font-size: 0.85rem; color: var(--text-sec);
+        border: 1px solid var(--border); font-weight: 500;
+    }
+    .tag.year { background: var(--primary); color: #fff; border: none; }
+
+    .description-box {
+        font-size: 1rem; line-height: 1.6; color: var(--text-main); margin-bottom: 30px;
+        max-width: 850px; opacity: 0.9;
+    }
+
+    /* Селект (кнопка статуса) */
     .status-select {
-        background: var(--surface); color: var(--text-main); border: 1px solid var(--border);
-        padding: 10px 15px; border-radius: 8px; font-size: 0.95rem; cursor: pointer; outline: none;
-        width: 100%; max-width: 250px; transition: border-color 0.3s;
+        appearance: none; -webkit-appearance: none;
+        background: var(--surface); /* Фон меняется */
+        color: var(--text-main);    /* Текст меняется */
+        border: 1px solid var(--border);
+        padding: 12px 40px 12px 20px; border-radius: 12px;
+        font-size: 0.95rem; font-weight: 600; cursor: pointer;
+        backdrop-filter: blur(10px); transition: 0.2s;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
     }
     .status-select:hover { border-color: var(--primary); }
-    .status-select option { background: var(--surface); padding: 10px; }
-    .remove-option { color: #ff6b6b; }
+    .status-select option { background: var(--surface); color: var(--text-main); padding: 10px; }
+    .select-arrow {
+        position: absolute; right: 15px; top: 50%; transform: translateY(-50%);
+        color: var(--text-sec); pointer-events: none; font-size: 0.7rem;
+    }
 
-    .meta-tags { display: flex; gap: 10px; margin-bottom: 20px; }
-    .tag { background: var(--input-bg); padding: 5px 12px; border-radius: 20px; font-size: 0.85rem; color: var(--text-sec); }
-    .description-box { line-height: 1.6; color: var(--text-main); max-height: 200px; overflow-y: auto; }
-
-    /* === ПЛЕЕР И СПИСОК (СТАРАЯ СТРУКТУРА) === */
-    .section-title { margin: 0 0 15px 0; color: var(--text-main); }
+    /* === ПЛЕЕР И СПИСОК === */
+    .player-section { margin-top: 40px; }
 
     .cinema-container {
         display: grid;
-        grid-template-columns: 1fr 300px;
-        gap: 0;
-        background: transparent;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: var(--shadow);
-        border: 1px solid var(--glass-border);
-        backdrop-filter: blur(10px);
+        grid-template-columns: minmax(0, 1fr) 300px;
+        background: var(--surface); /* В светлой теме сайдбар будет светлым! */
+        border-radius: 16px; overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: var(--shadow); /* Тень из переменных */
+        align-items: stretch;
     }
 
+    /* Видео остается черным всегда */
     .video-wrapper {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 16/9;
-        background: #000;
-        z-index: 2;
+        position: relative; width: 100%; aspect-ratio: 16/9;
+        background: #000; z-index: 2;
     }
+    .plyr { width: 100%; height: 100%; }
 
-    .plyr {
-        width: 100%;
-        height: 100%;
+    /* Кнопки пропуска (всегда темные для контраста с видео) */
+    .skip-btn {
+        pointer-events: auto; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px);
+        border: 1px solid rgba(255,255,255,0.2); color: #fff;
+        padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.85rem;
+        cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;
     }
+    .skip-btn:hover { background: var(--primary); border-color: var(--primary); }
+    .skip-buttons-container { position: absolute; bottom: 60px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 20; pointer-events: none; }
 
-    /* === БОКОВАЯ ПАНЕЛЬ === */
+    /* САЙДБАР (Адаптивный) */
     .playlist-sidebar {
-        background: var(--glass-bg);
-
-        backdrop-filter: blur(20px);
-        -webkit-backdrop-filter: blur(20px);
-
-        border-left: 1px solid var(--glass-border);
-        display: flex;
-        flex-direction: column;
-        height: 0;
-        min-height: 100%;
-        overflow: hidden;
+        background: var(--surface); /* Цвет темы */
+        border-left: 1px solid var(--border);
+        display: flex; flex-direction: column; height: 100%; overflow: hidden;
     }
 
     .playlist-header {
-        padding: 15px; background: var(--glass-inner-bg);
-        font-weight: bold; border-bottom: 1px solid var(--glass-border);
-        color: var(--text-main); flex-shrink: 0;
-        background: rgba(255, 255, 255, 0.05);
+        padding: 15px 20px; background: var(--input-bg); /* Чуть темнее фона */
+        border-bottom: 1px solid var(--border);
+        display: flex; justify-content: space-between; align-items: center;
+        flex-shrink: 0;
     }
+    .ph-title { font-weight: 700; color: var(--text-main); font-size: 1rem; }
+    .ph-count { background: var(--surface); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; color: var(--text-sec); border: 1px solid var(--border); }
 
-    /* === НОВЫЙ СТИЛЬ СПИСКА СЕРИЙ (ОСТАВЛЯЕМ КРАСИВЫМ) === */
     .playlist-controls {
-        padding: 10px; border-bottom: 1px solid var(--glass-border);
+        padding: 15px; border-bottom: 1px solid var(--border);
         display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
-        background: transparent;
     }
 
+    .search-wrap { position: relative; width: 100%; }
     #epSearch {
-        width: 100%; padding: 8px 12px;
-        background: var(--glass-input-bg);
-        border: 1px solid var(--glass-border);
-        border-radius: 8px; color: var(--text-main); outline: none; font-size: 0.9rem;
+        width: 100%; background: var(--input-bg); border: 1px solid var(--border);
+        padding: 8px 8px 8px 34px; border-radius: 8px; color: var(--text-main); outline: none; font-size: 0.9rem;
     }
     #epSearch:focus { border-color: var(--primary); }
+    .search-wrap .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); opacity: 0.5; color: var(--text-sec); }
 
-    .range-container {
-        display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px;
-        scrollbar-width: thin;
-    }
-    .range-container::-webkit-scrollbar { height: 4px; }
-    .range-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-
+    .range-container { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 5px; scrollbar-width: none; }
     .range-btn {
         background: transparent; border: 1px solid var(--border);
-        color: var(--text-sec); padding: 4px 10px; border-radius: 12px;
+        color: var(--text-sec); padding: 4px 10px; border-radius: 20px;
         font-size: 0.75rem; white-space: nowrap; cursor: pointer; transition: 0.2s;
     }
-    .range-btn:hover { color: var(--text-main); border-color: var(--text-sec); }
-    .range-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .range-btn:hover { border-color: var(--text-main); color: var(--text-main); }
+    .range-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
 
-    .episode-list-wrapper {
-        flex-grow: 1; overflow-y: auto; padding: 10px;
-        scrollbar-width: thin; scrollbar-color: var(--border) transparent;
-    }
-    .episode-list-wrapper::-webkit-scrollbar { width: 6px; }
-    .episode-list-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    /* Список */
+    .episode-list-wrapper { flex-grow: 1; overflow-y: auto; padding: 10px; }
+    .episode-list-wrapper::-webkit-scrollbar { width: 5px; }
+    .episode-list-wrapper::-webkit-scrollbar-track { background: var(--surface); }
+    .episode-list-wrapper::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
 
-    .episode-grid {
-        display: flex; flex-direction: column; gap: 4px; padding-right: 5px;
-    }
+    .episode-grid { display: flex; flex-direction: column; gap: 4px; }
 
     .ep-row {
         display: flex; align-items: center; width: 100%;
-        background: transparent; border: none; border-radius: 8px;
-        padding: 12px 15px; cursor: pointer; transition: all 0.2s ease;
-        text-align: left; color: var(--text-sec); font-family: inherit;
-        border-left: 3px solid transparent;
+        background: transparent; border: none; border-radius: 6px;
+        padding: 10px 12px; cursor: pointer; transition: 0.1s;
+        text-align: left; color: var(--text-sec);
     }
-    .ep-row:hover { background: var(--input-bg); color: var(--text-main); padding-left: 20px; }
-    .ep-row.active {
-        background: rgba(187, 134, 252, 0.1); color: var(--primary);
-        border-left-color: var(--primary); font-weight: 600;
-    }
+    .ep-row:hover { background: var(--surface-hover); color: var(--text-main); }
+    .ep-row.active { background: var(--primary); color: #fff; font-weight: 600; }
+    /* Для активной строки текст всегда белый (т.к. фон primary) */
+    .ep-row.active .ep-number, .ep-row.active .ep-play-icon { color: #fff; opacity: 1; }
 
-    .ep-icon {
-        display: flex; align-items: center; justify-content: center;
-        width: 24px; height: 24px; margin-right: 15px; opacity: 0.5; transition: 0.2s;
-    }
-    .ep-icon svg { width: 14px; height: 14px; fill: currentColor; }
-    .ep-row:hover .ep-icon { opacity: 1; }
-    .ep-row.active .ep-icon { opacity: 1; transform: scale(1.2); }
+    .ep-number { width: 25px; margin-right: 10px; font-variant-numeric: tabular-nums; opacity: 0.7; }
+    .ep-info { flex-grow: 1; font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .ep-play-icon { opacity: 0; font-size: 0.7rem; }
+    .ep-row:hover .ep-play-icon, .ep-row.active .ep-play-icon { opacity: 1; }
 
-    .ep-text { font-size: 0.95rem; flex-grow: 1; }
+    /* Ошибки / Пусто */
+    .no-eps-found { padding: 20px; text-align: center; color: var(--text-sec); font-size: 0.9rem; }
+    .no-content { text-align: center; padding: 60px; background: var(--surface); border-radius: 20px; border: 1px dashed var(--border); }
+    .empty-icon { font-size: 3rem; margin-bottom: 15px; opacity: 0.5; }
 
-    .no-eps-found { text-align: center; color: var(--text-sec); padding: 20px; font-size: 0.9rem; }
-    .no-content { background: var(--surface); padding: 40px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
-
-    .skip-overlay-btn {
-            position: absolute;
-            bottom: 60px; /* Чуть выше контролов плеера */
-            right: 20px;
-            z-index: 50; /* Поверх видео */
-            background: rgba(30, 30, 30, 0.8);
-            border: 1px solid var(--border);
-            color: #fff;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-weight: 600;
-            cursor: pointer;
-            backdrop-filter: blur(5px);
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            animation: fadeIn 0.3s ease;
-        }
-        .skip-overlay-btn:hover {
-            background: var(--primary);
-            transform: translateY(-2px);
-        }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-    /* === АДАПТИВ === */
-    @media (max-width: 900px) {
-        .anime-hero { grid-template-columns: 1fr; gap: 20px; }
-        .poster-container { max-width: 200px; margin: 0 auto; }
-        .info-container { text-align: center; }
-        .status-wrapper { display: flex; justify-content: center; }
+    /* АДАПТИВ */
+    @media (max-width: 1000px) {
+        .anime-hero { flex-direction: column; align-items: center; text-align: center; gap: 30px; }
+        .info-container { width: 100%; padding: 0; }
         .meta-tags { justify-content: center; }
+        .description-box { margin: 0 auto 30px auto; }
 
-        .cinema-container { grid-template-columns: 1fr; }
-        .playlist-sidebar {
-            border-left: none; border-top: 1px solid var(--border);
-            height: 400px; max-height: 400px;
-        }
+        .cinema-container { grid-template-columns: 1fr; height: auto; }
+        .video-wrapper { width: 100%; height: auto; }
+        .playlist-sidebar { height: 350px; border-left: none; border-top: 1px solid var(--border); }
     }
-    .plyr--full-ui { --plyr-color-main: #bb86fc; }
+
+    .plyr--video { --plyr-color-main: var(--primary); }
     </style>
 
     <script>
@@ -320,83 +351,59 @@
                 body: JSON.stringify({ anime_slug: animeSlug, status: status })
             })
             .then(r => r.json()).then(d => {
-                if(d.status==='updated') { select.style.borderColor='#4caf50'; setTimeout(()=>select.style.borderColor='',1000); showToast('Статус обновлен!', 'success'); }
-                else if(d.status==='removed') { select.value='none'; select.style.borderColor=''; showToast('Удалено из списка', 'success');}
-            }).catch(e => { console.error(e); select.style.borderColor='#ff6b6b'; showToast('Ошибка обновления', 'error');});
+                if (d.status === 'updated') {
+                    select.style.background = '#10b981'; select.style.color='#fff';
+                    setTimeout(() => { select.style.background = 'var(--surface)'; select.style.color='var(--text-main)'; }, 1500);
+                    if (typeof showToast === 'function') showToast('Статус обновлен!', 'success');
+                }
+                else if (d.status === 'removed') {
+                    select.value = 'none';
+                    if (typeof showToast === 'function') showToast('Удалено из списка', 'success');
+                }
+            }).catch(e => { console.error(e); if (typeof showToast === 'function') showToast('Ошибка обновления', 'error'); });
         }
 
-        // === 2. ПЛЕЕР + HLS ИНТЕГРАЦИЯ ===
+        // === 2. ПЛЕЕР + HLS ===
         document.addEventListener('DOMContentLoaded', () => {
             const videoElement = document.getElementById('player');
             const skipOpBtn = document.getElementById('skipOp');
             const skipEdBtn = document.getElementById('skipEd');
 
+            if (!videoElement) return;
+
             let hls = null;
             let player = null;
             let currentBtn = null;
-
-            // Тайминги
-            let opStart=0, opEnd=0, edStart=0, edEnd=0;
-
-            // Данные с сервера
+            let opStart = 0, opEnd = 0, edStart = 0, edEnd = 0;
             const lastEpisodeId = "{{ last_episode_id|default:'null' }}";
             const lastTimestamp = parseInt("{{ last_timestamp|default:'0' }}");
             let saveInterval = null;
 
-            // 🔥 НАСТРОЙКИ ПЛЕЕРА (КЛАВИАТУРА + КАЧЕСТВО)
             const defaultOptions = {
-                controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
+                controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
                 settings: ['quality', 'speed'],
-
-                // Настройки клавиатуры
-                seekTime: 10,
-                keyboard: { focused: true, global: true },
-
-                // Важно: начальное качество
-                quality: { default: 1080, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(newQ) }
+                quality: { default: 1080, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(newQ) },
+                debug: false
             };
 
-            // 🔥 ОПТИМИЗИРОВАННЫЙ HLS КОНФИГ
             const hlsConfig = {
-                enableWorker: true,           // Снижает нагрузку на интерфейс
-                maxBufferLength: 30,          // Грузим 30 сек вперед минимум
-                maxMaxBufferLength: 600,      // Разрешаем грузить до 10 минут в буфер
-                lowLatencyMode: false,        // Отключаем низкую задержку (важно для аниме/фильмов)
-                manifestLoadingTimeOut: 10000,
-                levelLoadingTimeOut: 10000,
-                fragLoadingTimeOut: 20000,
-                startLevel: -1                // Автовыбор стартового качества по скорости сети
+                enableWorker: true, lowLatencyMode: false, backBufferLength: 90,
+                maxBufferLength: 30, maxMaxBufferLength: 600,
+                manifestLoadingTimeOut: 20000, fragLoadingTimeOut: 20000, levelLoadingTimeOut: 20000,
+                startLevel: -1
             };
 
             function initPlayer() {
                 player = new Plyr(videoElement, defaultOptions);
-
-                // Перенос кнопок в контейнер плеера
-                player.on('ready', () => {
-                    const c = player.elements.container;
-                    if(c && skipOpBtn) c.appendChild(skipOpBtn);
-                    if(c && skipEdBtn) c.appendChild(skipEdBtn);
-                });
-
-                // Логика времени (Скипы)
                 player.on('timeupdate', () => {
                     const t = player.currentTime;
-                    if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'block';
+                    if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'flex';
                     else skipOpBtn.style.display = 'none';
-
-                    if (edStart > 0 && edEnd > 0 && t >= edStart && t < edEnd) skipEdBtn.style.display = 'block';
+                    if (edStart > 0 && edEnd > 0 && t >= edStart && t < edEnd) skipEdBtn.style.display = 'flex';
                     else skipEdBtn.style.display = 'none';
                 });
-
-                // Сохранение прогресса
-                player.on('playing', () => {
-                    if (!saveInterval) saveInterval = setInterval(saveProgress, 10000);
-                });
-                player.on('pause', () => {
-                    saveProgress();
-                    clearInterval(saveInterval);
-                    saveInterval = null;
-                });
+                player.on('playing', () => { if (!saveInterval) saveInterval = setInterval(saveProgress, 10000); });
+                player.on('pause', () => { saveProgress(); clearInterval(saveInterval); saveInterval = null; });
             }
 
             function saveProgress() {
@@ -408,86 +415,48 @@
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
                         body: JSON.stringify({ episode_id: epId, time: time })
-                    }).catch(()=>{});
+                    }).catch(() => { });
                 }
             }
 
-            // Обработчики кнопок пропуска
-            if(skipOpBtn) skipOpBtn.addEventListener('click', () => { if(player) { player.currentTime = opEnd; player.play(); } });
-            if(skipEdBtn) skipEdBtn.addEventListener('click', () => { if(player) { player.currentTime = edEnd; player.play(); } });
+            if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (player) { player.currentTime = opEnd; player.play(); } });
+            if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (player) { player.currentTime = edEnd; player.play(); } });
 
-            // === ГЛАВНАЯ ЛОГИКА КАЧЕСТВА ===
             function updateQuality(newQuality) {
                 if (!hls) return;
-
-                // 1. Попытка переключить уровень HLS (внутреннее переключение)
                 if (hls.levels && hls.levels.length > 1) {
                     const levelIndex = hls.levels.findIndex(l => l.height === newQuality);
-                    if (levelIndex !== -1) {
-                        hls.currentLevel = levelIndex;
-                        return;
-                    }
+                    if (levelIndex !== -1) { hls.currentLevel = levelIndex; return; }
                 }
-
-                // 2. Fallback: Если отдельные файлы (Hard Reload)
                 const url = getUrlForQuality(currentBtn, newQuality);
-                if (url) {
-                    const time = player.currentTime;
-                    const isPlaying = player.playing;
-                    loadStream(url, time, isPlaying);
-                }
+                if (url) loadStream(url, player.currentTime, player.playing);
             }
 
-            // 🔥 ОБНОВЛЕННАЯ ФУНКЦИЯ ЗАГРУЗКИ ПОТОКА
             function loadStream(url, startTime = 0, autoPlay = false) {
                 if (Hls.isSupported()) {
                     if (hls) hls.destroy();
-
-                    // Создаем HLS с оптимизированным конфигом
                     hls = new Hls(hlsConfig);
-
                     hls.loadSource(url);
                     hls.attachMedia(videoElement);
-
-                    hls.on(Hls.Events.MANIFEST_PARSED, (event, data) => {
-                        // Связываем уровни HLS с меню Plyr
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
                         const availableQualities = hls.levels.map(l => l.height);
-
                         if (availableQualities.length > 1) {
                             availableQualities.sort((a, b) => b - a);
                             player.config.quality.options = availableQualities;
                         }
-
                         if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) {
-                            var promise = player.play();
-                            if (promise !== undefined) {
-                                promise.catch(error => { console.log("Autoplay blocked"); }).then(() => {});
-                            }
-                        }
+                        if (autoPlay) player.play().catch(() => {});
                     });
-
-                    // Обработка ошибок HLS (Network & Media)
                     hls.on(Hls.Events.ERROR, function (event, data) {
                         if (data.fatal) {
                             switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR:
-                                    console.log('Сбой сети, пробуем восстановить...');
-                                    hls.startLoad();
-                                    break;
-                                case Hls.ErrorTypes.MEDIA_ERROR:
-                                    console.log('Сбой медиа, пробуем восстановить...');
-                                    hls.recoverMediaError();
-                                    break;
-                                default:
-                                    hls.destroy();
-                                    break;
+                                case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
+                                case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
+                                default: hls.destroy(); break;
                             }
                         }
                     });
-
                 } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                    // Для Safari (Native HLS)
                     videoElement.src = url;
                     videoElement.addEventListener('loadedmetadata', () => {
                         if (startTime > 0) videoElement.currentTime = startTime;
@@ -501,40 +470,28 @@
                 if (q == 1080) return btn.getAttribute('data-1080');
                 if (q == 720) return btn.getAttribute('data-720');
                 if (q == 480) return btn.getAttribute('data-480');
-                return btn.getAttribute('data-1080'); // Fallback
+                return btn.getAttribute('data-1080');
             }
 
-            window.selectEpisode = function(btn) {
+            window.selectEpisode = function (btn) {
                 currentBtn = btn;
                 document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-
                 opStart = parseInt(btn.getAttribute('data-op-start')) || 0;
                 opEnd = parseInt(btn.getAttribute('data-op-end')) || 0;
                 edStart = parseInt(btn.getAttribute('data-ed-start')) || 0;
                 edEnd = parseInt(btn.getAttribute('data-ed-end')) || 0;
-
-                if(skipOpBtn) skipOpBtn.style.display = 'none';
-                if(skipEdBtn) skipEdBtn.style.display = 'none';
-
+                skipOpBtn.style.display = 'none'; skipEdBtn.style.display = 'none';
                 const qualities = [];
                 if (btn.getAttribute('data-1080')) qualities.push(1080);
                 if (btn.getAttribute('data-720')) qualities.push(720);
                 if (btn.getAttribute('data-480')) qualities.push(480);
-
-                // Обновляем список качеств в Plyr
-                defaultOptions.quality.options = qualities;
                 if (!player) initPlayer();
                 player.config.quality.options = qualities;
-
-                // Запускаем с максимального доступного качества
-                const startQuality = qualities[0];
-                const url = getUrlForQuality(btn, startQuality);
-
+                const url = getUrlForQuality(btn, qualities[0]);
                 loadStream(url, 0, true);
             };
 
-            // --- НАВИГАЦИЯ И АВТОЗАПУСК ---
             const allEpBtns = Array.from(document.querySelectorAll('.ep-row'));
             const rangeContainer = document.getElementById('rangeContainer');
             const epSearch = document.getElementById('epSearch');
@@ -542,9 +499,7 @@
             const CHUNK_SIZE = 50;
 
             function initEpisodeNav() {
-                if (allEpBtns.length <= CHUNK_SIZE) {
-                    rangeContainer.style.display = 'none'; return;
-                }
+                if (allEpBtns.length <= CHUNK_SIZE) { rangeContainer.style.display = 'none'; return; }
                 const totalChunks = Math.ceil(allEpBtns.length / CHUNK_SIZE);
                 rangeContainer.innerHTML = '';
                 for (let i = 0; i < totalChunks; i++) {
@@ -571,51 +526,38 @@
                 epSearch.value = ''; noEpsFound.style.display = 'none';
             }
 
-            // Запуск
             initPlayer();
             initEpisodeNav();
 
-            // Автозапуск последнего эпизода
             let targetBtn = null;
             let startTimestamp = 0;
-
             if (lastEpisodeId && lastEpisodeId !== 'null') {
                 targetBtn = document.querySelector(`.ep-row[data-id="${lastEpisodeId}"]`);
                 if (targetBtn) startTimestamp = lastTimestamp;
             }
-            if (!targetBtn && allEpBtns.length > 0) {
-                targetBtn = allEpBtns[0];
-                startTimestamp = 0;
-            }
+            if (!targetBtn && allEpBtns.length > 0) targetBtn = allEpBtns[0];
 
             if (targetBtn) {
                 const btnIndex = allEpBtns.indexOf(targetBtn);
                 const chunkIndex = Math.floor(btnIndex / CHUNK_SIZE);
                 if (rangeContainer.style.display !== 'none') showRange(chunkIndex);
                 else allEpBtns.forEach(b => b.style.display = 'flex');
-
                 currentBtn = targetBtn;
                 targetBtn.classList.add('active');
-
                 opStart = parseInt(targetBtn.getAttribute('data-op-start')) || 0;
                 opEnd = parseInt(targetBtn.getAttribute('data-op-end')) || 0;
                 edStart = parseInt(targetBtn.getAttribute('data-ed-start')) || 0;
                 edEnd = parseInt(targetBtn.getAttribute('data-ed-end')) || 0;
-
                 const url = getUrlForQuality(targetBtn, 1080);
-                if (url) {
-                    loadStream(url, startTimestamp, false);
-                }
-                targetBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (url) loadStream(url, startTimestamp, false);
+                setTimeout(() => { targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
             }
 
-            // Поиск
             epSearch.addEventListener('input', (e) => {
                 const val = e.target.value.toLowerCase();
-                const activeRangeBtn = rangeContainer.querySelector('.range-btn.active');
                 if (val === '') {
+                    const activeRangeBtn = rangeContainer.querySelector('.range-btn.active');
                     if (activeRangeBtn) activeRangeBtn.click(); else allEpBtns.forEach(b => b.style.display = 'flex');
-                    noEpsFound.style.display = 'none';
                     return;
                 }
                 rangeContainer.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
