@@ -27,17 +27,17 @@
                 <div class="profile-text">
                     <h1>{{ user.username }}</h1>
                     <div class="stats-row">
-                        <span class="stat-badge">📚 Тайтлов: {{ library_items.count }}</span>
-                        <span class="stat-badge">📅 С нами с {{ user.date_joined|date:"Y" }}</span>
+                        <span class="stat-badge">Тайтлов: {{ library_items.count }}</span>
+                        <span class="stat-badge">С нами с {{ user.date_joined|date:"Y" }}</span>
                     </div>
                 </div>
             </div>
 
             <div class="profile-actions">
-                <a href="#" class="action-btn" title="Настройки">⚙️ Настройки</a>
+                <a href="{% url 'settings' %}" class="action-btn" title="Настройки">⚙️ Настройки</a>
                 <form action="{% url 'logout' %}" method="post" style="display:inline;">
                     {% csrf_token %}
-                    <button type="submit" class="action-btn logout">🚪 Выйти</button>
+                    <button type="submit" class="action-btn logout">Выйти</button>
                 </form>
             </div>
         </div>

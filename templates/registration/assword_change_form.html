@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Смена пароля | AniParser{% endblock %}
+
+{% block content %}
+<div class="auth-wrapper">
+    <div class="ambient-light one"></div>
+    <div class="ambient-light two"></div>
+
+    <div class="auth-container">
+        <div class="auth-card fade-in">
+            <div class="auth-header">
+                <h2>🔐 Смена пароля</h2>
+                <p>Введите текущий пароль, чтобы задать новый.</p>
+            </div>
+
+            <form method="post" class="auth-form">
+                {% csrf_token %}
+
+                {% if form.non_field_errors %}
+                    <div class="global-error">
+                        {{ form.non_field_errors.0 }}
+                    </div>
+                {% endif %}
+
+                {% for field in form %}
+                    <div class="form-group">
+                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        <div class="input-wrapper">
+                            {{ field }}
+                            <button type="button" class="toggle-password" onclick="togglePassword(this)">
+                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                            </button>
+                        </div>
+
+                        {% if field.help_text %}
+                            <div class="help-text">{{ field.help_text|safe }}</div>
+                        {% endif %}
+
+                        {% if field.errors %}
+                            <div class="error-msg">
+                                {{ field.errors.0 }}
+                            </div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+
+                <button type="submit" class="auth-btn">
+                    Обновить пароль
+                </button>
+
+                <div class="auth-footer">
+                    <a href="{% url 'settings' %}" style="color: var(--text-sec); text-decoration: none;">Отмена (Назад в настройки)</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% include 'includes/auth_styles.html' %}
+{% endblock %}

@@ -25,7 +25,15 @@
 
                 {% for field in form %}
                     <div class="form-group">
-                        <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+
+                        <div class="label-row">
+                            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+
+                            {% if 'password' in field.name %}
+                                <a href="{% url 'password_reset' %}" class="forgot-link">Забыли пароль?</a>
+                            {% endif %}
+                        </div>
+
                         <div class="input-wrapper">
                             {{ field }}
                             {% if 'password' in field.name %}
@@ -34,6 +42,7 @@
                                 </button>
                             {% endif %}
                         </div>
+
                         {% if field.errors %}
                             <div class="error-msg">
                                 {{ field.errors.0 }}
@@ -56,4 +65,31 @@
 </div>
 
 {% include 'includes/auth_styles.html' %}
+
+<style>
+    .label-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    /* Сбрасываем отступ у label, так как он теперь внутри label-row */
+    .form-group label {
+        margin-bottom: 0;
+    }
+
+    .forgot-link {
+        font-size: 0.85rem;
+        color: var(--text-sec);
+        text-decoration: none;
+        transition: color 0.2s ease;
+        font-weight: 500;
+    }
+
+    .forgot-link:hover {
+        color: var(--primary);
+        text-decoration: underline;
+    }
+</style>
 {% endblock %}

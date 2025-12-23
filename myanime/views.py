@@ -4,12 +4,13 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q
 from django.http import JsonResponse
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView
+from django.contrib import messages
 
-from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList
+from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile
 
 # Create your views here.
 
@@ -202,3 +203,51 @@ def save_progress(request):
             return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
     return JsonResponse({'status': 'error', 'message': 'Invalid method'}, status=405)
+
+@login_required
+def settings_view(request):
+    profile, created = Profile.objects.get_or_create(user=request.user)
+
+    if request.method == 'POST':
+        user = request.user
+        user.username = request.POST.get('username')
+        user.email = request.POST.get('email')
+        user.save()
+        profile.bio = request.POST.get('bio')
+        profile.auto_next = request.POST.get('auto_next') == 'on'
+        profile.auto_skip_intro = request.POST.get('auto_skip') == 'on'
+        profile.backdrop_blur = request.POST.get('backdrop_blur') == 'on'
+
+        profile.default_quality = request.POST.get('quality')
+        profile.telegram_id = request.POST.get('telegram_id')
+
+        if 'avatar' in request.FILES:
+            profile.avatar = request.FILES['avatar']
+
+        profile.save()
+
+        messages.success(request, 'Настройки успешно сохранены!')
+        return redirect('settings')
+
+    return render(request, 'settings.html', {'user': request.user})
+
+@login_required
+def start_telegram_auth(request):
+    token = request.user.profile.generate_token()
+    bot_name = "aniplayerbot"
+    link = f"https://t.me/{bot_name}?start={token}"
+
+    return redirect(link)
+
+def finish_telegram_auth(request, token, chat_id):
+    try:
+        profile = Profile.objects.get(tg_auth_token=token)
+        profile.telegram_id = chat_id
+        profile.tg_auth_token = ""
+        profile.save()
+
+        messages.success(request, 'Telegram успешно привязан! ✈️')
+    except Profile.DoesNotExist:
+        messages.error(request, 'Ошибка привязки: неверный токен.')
+
+    return redirect('settings')

@@ -1,0 +1,337 @@
+{% extends 'base.html' %}
+
+{% block title %}Настройки | AniParser{% endblock %}
+
+{% block content %}
+<div class="settings-container">
+
+    <aside class="settings-sidebar">
+        <div class="sidebar-header">Настройки</div>
+        <nav class="settings-nav">
+            <button type="button" class="nav-item active" onclick="switchTab('profile')">
+                <span class="icon">👤</span> Профиль
+            </button>
+            <button type="button" class="nav-item" onclick="switchTab('player')">
+                <span class="icon">▶</span> Плеер
+            </button>
+            <button type="button" class="nav-item" onclick="switchTab('interface')">
+                <span class="icon">🎨</span> Интерфейс
+            </button>
+            <button type="button" class="nav-item danger" onclick="switchTab('security')">
+                <span class="icon">🛡</span> Безопасность
+            </button>
+        </nav>
+    </aside>
+
+    <form method="post" enctype="multipart/form-data" class="settings-content">
+        {% csrf_token %}
+
+        <div id="profile" class="tab-pane active">
+            <h2 class="pane-title">Мой профиль</h2>
+
+            <div class="avatar-upload-section">
+                <input type="file" name="avatar" id="avatarInput" accept="image/*" style="display: none;" onchange="previewAvatar(this)">
+
+                <div class="current-avatar" onclick="document.getElementById('avatarInput').click()">
+                    {% if user.profile.avatar %}
+                        <img id="avatarPreview" src="{{ user.profile.avatar.url }}" alt="Avatar">
+                    {% else %}
+                        <div id="avatarPlaceholder" class="avatar-placeholder">{{ user.username|first|upper }}</div>
+                        <img id="avatarPreview" src="" alt="Avatar" style="display: none;">
+                    {% endif %}
+                    <div class="edit-overlay">📷</div>
+                </div>
+
+                <div class="avatar-info">
+                    <h3>Фото профиля</h3>
+                    <p>Нажмите на фото, чтобы изменить.</p>
+                    <button type="button" class="btn-secondary" onclick="document.getElementById('avatarInput').click()">Загрузить новое</button>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Никнейм</label>
+                    <input type="text" name="username" value="{{ user.username }}" class="st-input">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" value="{{ user.email }}" class="st-input">
+                </div>
+                <div class="form-group full">
+                    <label>О себе</label>
+                    <textarea name="bio" class="st-input" rows="3" placeholder="Пару слов о ваших вкусах...">{{ user.profile.bio }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <div id="player" class="tab-pane">
+            <h2 class="pane-title">Настройки плеера</h2>
+            <div class="settings-list">
+
+                <div class="setting-item">
+                    <div class="st-info">
+                        <h3>Авто-старт следующей серии</h3>
+                        <p>Переключать эпизод сразу после окончания.</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="auto_next" {% if user.profile.auto_next %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <div class="st-info">
+                        <h3>Пропускать опенинги (Auto-Skip)</h3>
+                        <p>Автоматически нажимать кнопку "Пропустить опенинг".</p>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" name="auto_skip" {% if user.profile.auto_skip_intro %}checked{% endif %}>
+                        <span class="slider"></span>
+                    </label>
+                </div>
+
+                <div class="setting-item">
+                    <div class="st-info">
+                        <h3>Качество видео по умолчанию</h3>
+                        <p>Выбирать это качество при старте.</p>
+                    </div>
+                    <select name="quality" class="st-select">
+                        <option value="1080" {% if user.profile.default_quality == '1080' %}selected{% endif %}>1080p (Full HD)</option>
+                        <option value="720" {% if user.profile.default_quality == '720' %}selected{% endif %}>720p (HD)</option>
+                        <option value="480" {% if user.profile.default_quality == '480' %}selected{% endif %}>480p (SD)</option>
+                    </select>
+                </div>
+
+            </div>
+        </div>
+
+        <div id="interface" class="tab-pane">
+            <h2 class="pane-title">Интерфейс</h2>
+
+            <div class="setting-item">
+                <div class="st-info">
+                    <h3>Размытие фона (Backdrop)</h3>
+                    <p>Отключите для повышения производительности.</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" name="backdrop_blur" {% if user.profile.backdrop_blur %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div class="st-info">
+                    <h3>Темная тема</h3>
+                    <p>Использовать темное оформление сайта.</p>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" name="dark_theme" {% if user.profile.dark_theme %}checked{% endif %}>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div id="security" class="tab-pane">
+            <h2 class="pane-title">Безопасность</h2>
+            {% if user.profile.telegram_id %}
+                <div class="tg-connected">
+                    <span class="status-badge">✅ Подключено</span>
+                    <span class="tg-id">ID: {{ user.profile.telegram_id }}</span>
+                </div>
+                <p style="font-size: 0.85rem; color: var(--text-sec); margin-top: 5px;">
+                    Бот будет присылать сюда уведомления.
+                </p>
+
+            {% else %}
+                <p>Нажмите кнопку, чтобы запустить бота и привязать аккаунт.</p>
+                <a href="{% url 'connect_telegram' %}" class="auth-btn tg-btn" target="_blank">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2z"/></svg>
+                    Привязать Telegram
+                </a>
+            {% endif %}
+
+            <div class="security-card">
+                <div class="sec-info">
+                    <h3>Пароль</h3>
+                    <p>Сменить текущий пароль на новый.</p>
+                </div>
+
+                <a href="{% url 'password_change' %}" class="btn-secondary change-pass-btn">Сменить пароль</a>
+            </div>
+
+            </div>
+
+                <div class="save-bar">
+                    <button type="submit" class="btn-primary save-btn">Сохранить изменения</button>
+                </div>
+
+            </form>
+        </div>
+
+<style>
+    .tg-btn {
+        background: #229ED9; /* Цвет Телеграма */
+        margin-top: 15px;
+        text-decoration: none;
+        display: inline-flex;
+    }
+    .tg-btn:hover { background: #1c85b8; }
+    .tg-connected {
+        background: rgba(34, 158, 217, 0.1);
+        padding: 15px; border-radius: 12px;
+        border: 1px solid rgba(34, 158, 217, 0.3);
+        display: flex; justify-content: space-between; align-items: center;
+    }
+    .status-badge { color: #229ED9; font-weight: 700; }
+    /* === СТИЛИ === */
+    .settings-container {
+        max-width: 1100px; margin: 40px auto;
+        display: grid; grid-template-columns: 260px 1fr; gap: 40px;
+        padding: 0 20px; align-items: start;
+    }
+
+    .settings-sidebar {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 20px; padding: 20px;
+        position: sticky; top: 100px;
+    }
+    .sidebar-header {
+        font-size: 1.2rem; font-weight: 800; color: var(--text-main);
+        margin-bottom: 20px; padding-left: 10px;
+    }
+    .settings-nav { display: flex; flex-direction: column; gap: 5px; }
+
+    .nav-item {
+        background: transparent; border: none; text-align: left;
+        padding: 12px 15px; border-radius: 12px;
+        color: var(--text-sec); font-weight: 600; font-size: 0.95rem;
+        cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 12px;
+    }
+    .nav-item:hover { background: var(--surface-hover); color: var(--text-main); }
+    .nav-item.active { background: var(--primary); color: #fff; box-shadow: 0 4px 15px var(--primary-glow); }
+    .nav-item.danger { color: #ff6b6b; margin-top: 20px; border: 1px solid rgba(255,107,107,0.1); }
+    .nav-item.danger:hover { background: rgba(255,107,107,0.1); }
+
+    .settings-content {
+        background: var(--surface); border: 1px solid var(--border);
+        border-radius: 24px; padding: 40px; min-height: 500px;
+    }
+    .tab-pane { display: none; animation: fadeIn 0.3s ease; }
+    .tab-pane.active { display: block; }
+    .pane-title { margin: 0 0 30px 0; font-size: 1.8rem; font-weight: 800; color: var(--text-main); }
+
+    .avatar-upload-section { display: flex; gap: 25px; align-items: center; margin-bottom: 40px; }
+    .current-avatar {
+        width: 100px; height: 100px; border-radius: 50%; overflow: hidden;
+        position: relative; cursor: pointer; border: 3px solid var(--surface-hover);
+    }
+    .current-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .avatar-placeholder {
+        width: 100%; height: 100%; background: var(--input-bg);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 2.5rem; font-weight: 800; color: var(--text-sec);
+    }
+    .edit-overlay {
+        position: absolute; inset: 0; background: rgba(0,0,0,0.5);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; transition: 0.2s; font-size: 1.5rem;
+    }
+    .current-avatar:hover .edit-overlay { opacity: 1; }
+    .avatar-info h3 { margin: 0 0 5px 0; font-size: 1.1rem; }
+    .avatar-info p { margin: 0 0 15px 0; font-size: 0.85rem; color: var(--text-sec); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .form-group.full { grid-column: 1/-1; }
+    .form-group label { display: block; margin-bottom: 8px; font-size: 0.9rem; font-weight: 600; color: var(--text-sec); }
+    .st-input, .st-select {
+        width: 100%; padding: 12px 16px; background: var(--input-bg);
+        border: 1px solid var(--border); border-radius: 10px;
+        color: var(--text-main); font-size: 1rem; outline: none; transition: 0.2s;
+    }
+    .st-input:focus, .st-select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-glow); }
+
+    .settings-list { display: flex; flex-direction: column; gap: 20px; }
+    .setting-item {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 20px; background: var(--input-bg);
+        border: 1px solid var(--border); border-radius: 16px;
+    }
+    .st-info h3 { margin: 0 0 5px 0; font-size: 1rem; }
+    .st-info p { margin: 0; font-size: 0.85rem; color: var(--text-sec); }
+
+    .switch { position: relative; display: inline-block; width: 50px; height: 28px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+        position: absolute; cursor: pointer; inset: 0;
+        background-color: var(--surface-hover); border-radius: 34px; transition: .4s;
+        border: 1px solid var(--border);
+    }
+    .slider:before {
+        position: absolute; content: ""; height: 20px; width: 20px;
+        left: 3px; bottom: 3px; background-color: white;
+        border-radius: 50%; transition: .4s;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    }
+    input:checked + .slider { background-color: var(--primary); border-color: var(--primary); }
+    input:checked + .slider:before { transform: translateX(22px); }
+
+    .btn-secondary {
+        background: transparent; border: 1px solid var(--border); color: var(--text-main);
+        padding: 8px 16px; border-radius: 8px; font-weight: 600; cursor: pointer;
+    }
+    .btn-secondary:hover { border-color: var(--text-sec); }
+
+    .save-bar { margin-top: 40px; display: flex; justify-content: flex-end; }
+    .save-btn {
+        background: var(--primary); color: #fff; border: none;
+        padding: 12px 30px; border-radius: 12px; font-weight: 700;
+        cursor: pointer; box-shadow: 0 4px 15px var(--primary-glow);
+        transition: 0.2s;
+    }
+    .save-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px var(--primary-glow); }
+
+    @media (max-width: 768px) {
+        .settings-container { grid-template-columns: 1fr; gap: 20px; }
+        .settings-sidebar { position: static; }
+        .settings-nav { flex-direction: row; overflow-x: auto; padding-bottom: 5px; }
+        .nav-item { white-space: nowrap; }
+        .form-grid { grid-template-columns: 1fr; }
+        .setting-item { flex-direction: column; align-items: flex-start; gap: 15px; }
+        .switch { align-self: flex-end; }
+    }
+</style>
+
+<script>
+    // ПЕРЕКЛЮЧЕНИЕ ТАБОВ
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+
+        document.getElementById(tabId).classList.add('active');
+
+        // Находим кнопку и делаем активной
+        const buttons = document.querySelectorAll('.nav-item');
+        if(tabId === 'profile') buttons[0].classList.add('active');
+        if(tabId === 'player') buttons[1].classList.add('active');
+        if(tabId === 'interface') buttons[2].classList.add('active');
+        if(tabId === 'security') buttons[3].classList.add('active');
+    }
+
+    // ПРЕВЬЮ АВАТАРКИ ПРИ ЗАГРУЗКЕ
+    function previewAvatar(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.getElementById('avatarPreview');
+                const placeholder = document.getElementById('avatarPlaceholder');
+
+                img.src = e.target.result;
+                img.style.display = 'block';
+                if(placeholder) placeholder.style.display = 'none';
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
+{% endblock %}

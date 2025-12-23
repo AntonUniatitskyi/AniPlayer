@@ -1,5 +1,8 @@
 from django.contrib.auth.models import User
 from django.db import models
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import uuid
 
 
 # Create your models here.
@@ -92,3 +95,38 @@ class EpisodeHistory(models.Model):
 
     def __str__(self):
         return f"{self.user} -> {self.episode} ({self.timestamp}s)"
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
+    telegram_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Telegram Chat ID")
+    tg_auth_token = models.CharField(max_length=100, blank=True, null=True)
+
+    avatar = models.ImageField(upload_to='avatars/', blank=True, null=True, verbose_name="Аватар")
+    bio = models.TextField(max_length=500, blank=True, verbose_name="О себе")
+    auto_next = models.BooleanField(default=True, verbose_name="Авто-переключение серий")
+    auto_skip_intro = models.BooleanField(default=False, verbose_name="Пропуск опенинга")
+    default_quality = models.CharField(
+        max_length=10,
+        choices=[('1080', '1080p'), ('720', '720p'), ('480', '480p')],
+        default='1080',
+        verbose_name="Качество по умолчанию"
+    )
+    dark_theme = models.BooleanField(default=True, verbose_name="Темная тема")
+    backdrop_blur = models.BooleanField(default=True, verbose_name="Размытие фона")
+
+    def __str__(self):
+        return f"Profile of {self.user.username}"
+
+    def generate_token(self):
+        self.tg_auth_token = str(uuid.uuid4())
+        self.save()
+        return self.tg_auth_token
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        Profile.objects.create(user=instance)
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    instance.profile.save()
