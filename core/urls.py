@@ -66,4 +66,5 @@ urlpatterns = [
          name='password_change'),
     path('connect-telegram/', views.start_telegram_auth, name='connect_telegram'),
     path('connect-telegram/done/<str:token>/<str:chat_id>/', views.finish_telegram_auth, name='finish_telegram_auth'),
+    path('api/subscribe/', views.toggle_subscription, name='toggle_subscription'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

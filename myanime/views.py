@@ -9,11 +9,76 @@ from django.urls import reverse_lazy
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView
 from django.contrib import messages
+import requests
+from decouple import config
 
-from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile
+from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile, Subscription
 
 # Create your views here.
 
+@login_required
+@require_POST
+def toggle_subscription(request):
+    data = json.loads(request.body)
+    anime_slug = data.get('anime_slug')
+    user_profile = getattr(request.user, 'profile', None)
+
+    if not user_profile or not user_profile.telegram_id:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Сначала привяжите Telegram в настройках!'
+        }, status=400)
+
+    try:
+        anime = AnimeTitle.objects.get(code=anime_slug)
+        sub, created = Subscription.objects.get_or_create(user=request.user, anime=anime)
+
+        if not created:
+            sub.delete()
+            return JsonResponse({'status': 'unsubscribed'})
+        else:
+            send_subscription_confirmation(user_profile.telegram_id, anime)
+
+            return JsonResponse({'status': 'subscribed'})
+
+    except AnimeTitle.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Аниме не найдено'}, status=404)
+
+def send_subscription_confirmation(chat_id, anime):
+    token = config('TG_BOT_TOKEN')
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    try:
+        site_url = config('SITE_URL', default='http://127.0.0.1:8000')
+    except:
+        site_url = "http://127.0.0.1:8000"
+
+    anime_link = f"{site_url}/anime/{anime.code}"
+
+    message = (
+        f"🔔 <b>Подписка оформлена!</b>\n\n"
+        f"Вы успешно подписались на обновления:\n"
+        f"📺 <b>{anime.name_ru}</b>\n\n"
+        f"Бот пришлет уведомление, как только выйдет новая серия."
+    )
+
+    keyboard = {
+        "inline_keyboard": [
+            [
+                {"text": "🎬 Открыть на сайте", "url": anime_link}
+            ]
+        ]
+    }
+
+    try:
+        requests.post(url, data={
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "HTML",
+            "reply_markup": json.dumps(keyboard)  # <--- МАГИЯ ЗДЕСЬ
+        }, timeout=2)
+    except Exception as e:
+        print(f"Ошибка отправки подтверждения: {e}")
 
 def search_anime_api(request):
     query = request.GET.get('q', '')
@@ -91,6 +156,12 @@ class AnimeTitleDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         context['last_episode_id'] = None
         context['last_timestamp'] = 0
+        context['is_subscribed'] = False
+        if self.request.user.is_authenticated:
+            context['is_subscribed'] = Subscription.objects.filter(
+                user=self.request.user,
+                anime=self.object
+            ).exists()
 
         if self.request.user.is_authenticated:
             try:
