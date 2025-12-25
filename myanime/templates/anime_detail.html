@@ -56,6 +56,9 @@
                     {% if anime.updated_at %}
                         <span class="tag year">{{ anime.updated_at|date:"Y" }}</span>
                     {% endif %}
+                    {% for genre in anime.genres.all %}
+                        <span class="tag">{{ genre.name }}</span>
+                    {% endfor %}
                     <span class="tag">ID: {{ anime.anilibria_id }}</span>
                 </div>
 
@@ -161,6 +164,21 @@
                 <h3>Серии скоро появятся</h3>
                 <p>Мы уже работаем над загрузкой контента для этого тайтла.</p>
             </div>
+        {% endif %}
+        {% if similar_anime %}
+        <div class="similar-section">
+            <h3 class="section-title">Вам может понравиться</h3>
+            {% include 'includes/anime_grid.html' with anime_list=similar_anime %}
+        </div>
+
+        <style>
+            .similar-section { margin-top: 60px; }
+            .section-title {
+                font-size: 1.5rem; font-weight: 700; margin-bottom: 25px;
+                color: var(--text-main); border-left: 4px solid var(--primary);
+                padding-left: 15px;
+            }
+        </style>
         {% endif %}
     </div>
 
@@ -277,6 +295,120 @@
         60% { transform: rotate(-10deg); }
         75% { transform: rotate(5deg); }
         100% { transform: rotate(0); }
+    }
+
+    /* === СТИЛИ ДЛЯ БЛОКА "ПОХОЖЕЕ" === */
+
+    .similar-section {
+        margin-top: 60px;
+        margin-bottom: 40px;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: 25px;
+        color: var(--text-main);
+        border-left: 4px solid var(--primary);
+        padding-left: 15px;
+    }
+
+    /* Сама сетка */
+    .anime-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 20px;
+    }
+
+    /* === СТИЛИ КАРТОЧКИ (Дублируем, если они не глобальные) === */
+    .anime-card {
+        background: transparent;
+        border: none;
+        border-radius: 16px;
+        text-decoration: none;
+        color: inherit;
+        display: flex;
+        flex-direction: column;
+        transition: transform 0.3s ease;
+    }
+
+    .anime-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .poster-wrapper {
+        position: relative;
+        aspect-ratio: 455/650;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #18181b;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .poster-wrapper img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 0.5s ease;
+    }
+
+    .anime-card:hover .poster-wrapper img {
+        transform: scale(1.05);
+    }
+
+    /* Оверлей с кнопкой Play при наведении */
+    .card-overlay {
+        position: absolute; inset: 0;
+        background: rgba(0, 0, 0, 0.3);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; transition: 0.3s;
+    }
+    .anime-card:hover .card-overlay { opacity: 1; }
+
+    .play-icon {
+        width: 40px; height: 40px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.2);
+        backdrop-filter: blur(4px);
+        display: flex; align-items: center; justify-content: center;
+        color: #fff; transform: scale(0.8); transition: 0.3s;
+    }
+    .anime-card:hover .play-icon {
+        transform: scale(1); background: var(--primary);
+    }
+
+    .card-info { padding-top: 10px; }
+
+    .card-title {
+        font-size: 0.9rem; font-weight: 600; line-height: 1.3;
+        color: var(--text-main);
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .anime-card:hover .card-title { color: var(--primary); }
+
+    .card-meta {
+        font-size: 0.8rem; color: var(--text-sec); margin-top: 4px;
+    }
+
+    /* Бейджи статуса (если используются в include) */
+    .status-badge-overlay {
+        position: absolute; top: 8px; left: 8px;
+        padding: 4px 8px; border-radius: 6px;
+        font-size: 0.7rem; font-weight: 700; color: #fff;
+        text-transform: uppercase;
+        backdrop-filter: blur(4px);
+    }
+    .anime-card[data-status="watching"] .status-badge-overlay { background: rgba(16, 185, 129, 0.9); }
+    .anime-card[data-status="planned"] .status-badge-overlay { background: rgba(59, 130, 246, 0.9); }
+    .anime-card[data-status="completed"] .status-badge-overlay { background: rgba(139, 92, 246, 0.9); }
+
+    /* Адаптив для сетки */
+    @media (max-width: 600px) {
+        .anime-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
     }
 
     /* Адаптив для мобильных */

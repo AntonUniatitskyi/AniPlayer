@@ -1,0 +1,55 @@
+<div class="anime-grid">
+    {% for item in anime_list %}
+    {% with anime=item.anime|default:item status=item.status %}
+
+    <a href="{% url 'anime_detail' slug=anime.code %}{% if from_library %}?ref=library{% endif %}" class="anime-card"
+        data-name="{{ anime.name_ru|lower }}" data-status="{{ status }}">
+
+        <div class="poster-wrapper loading">
+            {% if status %}
+            <div class="status-badge-overlay">
+                {% if status == 'watching' %}Смотрю
+                {% elif status == 'planned' %}В планах
+                {% elif status == 'completed' %}Готово
+                {% elif status == 'dropped' %}Брошено
+                {% else %}{{ status }}{% endif %}
+            </div>
+            {% endif %}
+
+            {% if anime.poster_path %}
+            <img src="{{ anime.poster_path }}" width="455" height="650" alt="{{ anime.name_ru }}" loading="lazy"
+                decoding="async" onload="this.parentElement.classList.remove('loading')">
+            {% else %}
+            <div class="no-poster"><span>Нет фото</span></div>
+            {% endif %}
+
+            <div class="card-overlay">
+                <div class="play-icon">▶</div>
+            </div>
+        </div>
+
+        <div class="card-info">
+            <h3 class="card-title">{{ anime.name_ru }}</h3>
+
+            <div class="card-meta">
+                {% if anime.updated_at %}
+                <span class="date-badge">{{ anime.updated_at|date:"Y" }}</span>
+                {% endif %}
+                {% if item.current_episode %}
+                <span class="ep-badge">{{ item.current_episode }} сер.</span>
+                {% endif %}
+            </div>
+        </div>
+    </a>
+    {% endwith %}
+
+    {% empty %}
+    {# Пустое состояние #}
+    <div class="empty-state">
+        <div class="empty-icon">📂</div>
+        <h3>{{ empty_msg|default:"Здесь пока пусто" }}</h3>
+        <p>Добавьте аниме в этот список.</p>
+        <a href="{% url 'home' %}" class="btn-primary">Найти аниме</a>
+    </div>
+    {% endfor %}
+</div>

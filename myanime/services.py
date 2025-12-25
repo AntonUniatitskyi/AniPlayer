@@ -6,7 +6,7 @@ import requests
 from asgiref.sync import sync_to_async
 from django.db import transaction
 
-from .models import AnimeTitle, Episode
+from .models import AnimeTitle, Episode, Genre
 
 CONCURENT_REQUESTS = 25
 BASE_SITE_URL = "https://aniliberty.top"
@@ -70,6 +70,29 @@ def save_batch_to_db(batch_data, stats):
                     stats['anime_created'] += 1
                 else:
                     stats['anime_updated'] += 1
+
+                genres_list = rel_data.get('genres', [])
+                if genres_list:
+                    genre_objects = []
+                    for genre_item in genres_list:
+                        # genre_item - это словарь {"id": 21, "name": "Комедия"...}
+                        # Нам нужно только "name"
+                        if isinstance(genre_item, dict):
+                            g_name = genre_item.get('name')
+                        else:
+                            # На случай, если вдруг придет строка (защита)
+                            g_name = str(genre_item)
+
+                        if g_name:
+                            # Чистим и обрезаем
+                            g_name_clean = str(g_name).strip()[:250]
+
+                            if g_name_clean:
+                                genre, _ = Genre.objects.get_or_create(name=g_name_clean)
+                                genre_objects.append(genre)
+
+                    anime_obj.genres.set(genre_objects)
+
 
                 episodes_list = rel_data.get('episodes', [])
                 if episodes_list:

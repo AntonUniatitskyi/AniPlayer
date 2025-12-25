@@ -11,6 +11,7 @@ from django.views.generic import CreateView, DetailView, ListView
 from django.contrib import messages
 import requests
 from decouple import config
+from django.db.models import Count
 
 from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile, Subscription
 
@@ -154,6 +155,18 @@ class AnimeTitleDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        anime = self.object
+        # Берем жанры текущего аниме
+        anime_genres = anime.genres.all()
+
+        # Ищем совпадения
+        similar_anime = AnimeTitle.objects.filter(genres__in=anime_genres)\
+            .exclude(id=anime.id)\
+            .annotate(same_genres=Count('genres'))\
+            .order_by('-same_genres', '-updated_at')\
+            .distinct()[:6]
+
+        context['similar_anime'] = similar_anime
         context['last_episode_id'] = None
         context['last_timestamp'] = 0
         context['is_subscribed'] = False

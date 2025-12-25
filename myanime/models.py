@@ -6,9 +6,20 @@ import uuid
 
 
 # Create your models here.
+class Genre(models.Model):
+    name = models.CharField(max_length=255, unique=True, verbose_name="Жанр")
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = "Жанр"
+        verbose_name_plural = "Жанры"
+
 class AnimeTitle(models.Model):
     anilibria_id = models.IntegerField(
         unique=True, verbose_name="Anilibria ID")
+    genres = models.ManyToManyField(Genre, related_name='animes', verbose_name="Жанры", blank=True)
 
     code = models.CharField(max_length=255, verbose_name="Код (slug)")
     name_ru = models.CharField(
