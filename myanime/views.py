@@ -302,7 +302,9 @@ def settings_view(request):
         profile.auto_skip_intro = request.POST.get('auto_skip') == 'on'
         profile.backdrop_blur = request.POST.get('backdrop_blur') == 'on'
 
-        profile.default_quality = request.POST.get('quality')
+        quality = request.POST.get('quality')
+        if quality in ['1080', '720', '480']:
+            profile.default_quality = quality
         profile.telegram_id = request.POST.get('telegram_id')
 
         if 'avatar' in request.FILES:

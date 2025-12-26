@@ -616,7 +616,7 @@
             {% if user.is_authenticated %}
                 autoNext: {{ user.profile.auto_next|yesno:"true,false" }},
                 autoSkip: {{ user.profile.auto_skip_intro|yesno:"true,false" }},
-                defaultQuality: {{ user.profile.default_quality|default:"1080" }},
+                defaultQuality: parseInt("{{ user.profile.default_quality|default:'1080' }}"),
             {% else %}
                 autoNext: true,
                 autoSkip: false,
@@ -687,11 +687,12 @@
             const lastEpisodeId = "{{ last_episode_id|default:'null' }}";
             const lastTimestamp = parseInt("{{ last_timestamp|default:'0' }}");
             let saveInterval = null;
+            let currentQuality = userSettings.defaultQuality;
 
             const defaultOptions = {
                 controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
                 settings: ['quality', 'speed'],
-                quality: { default: userSettings.defaultQuality, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(newQ) },
+                quality: { default: currentQuality, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(newQ) },
                 debug: false
             };
 
@@ -752,6 +753,7 @@
             if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (player) { player.currentTime = edEnd; player.play(); } });
 
             function updateQuality(newQuality) {
+                currentQuality = newQuality;
                 if (!hls) return;
                 if (hls.levels && hls.levels.length > 1) {
                     const levelIndex = hls.levels.findIndex(l => l.height === newQuality);
@@ -815,8 +817,14 @@
                 if (btn.getAttribute('data-1080')) qualities.push(1080);
                 if (btn.getAttribute('data-720')) qualities.push(720);
                 if (btn.getAttribute('data-480')) qualities.push(480);
+                qualities.sort((a, b) => b - a);
                 if (!player) initPlayer();
+                let selectedQuality = currentQuality;
+                if (!qualities.includes(selectedQuality)) {
+                    selectedQuality = qualities[0];
+                }
                 player.config.quality.options = qualities;
+                player.config.quality.default = selectedQuality;
                 const url = getUrlForQuality(btn, qualities[0]);
                 loadStream(url, 0, true);
             };
@@ -876,7 +884,7 @@
                 opEnd = parseInt(targetBtn.getAttribute('data-op-end')) || 0;
                 edStart = parseInt(targetBtn.getAttribute('data-ed-start')) || 0;
                 edEnd = parseInt(targetBtn.getAttribute('data-ed-end')) || 0;
-                const url = getUrlForQuality(targetBtn, 1080);
+                const url = getUrlForQuality(targetBtn, userSettings.defaultQuality) || getUrlForQuality(targetBtn, 1080) || getUrlForQuality(targetBtn, 720);
                 if (url) loadStream(url, startTimestamp, false);
                 setTimeout(() => { targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
             }
