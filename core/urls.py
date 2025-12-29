@@ -70,3 +70,4 @@ urlpatterns = [
     path('api/subscribe/', views.toggle_subscription, name='toggle_subscription'),
     path('sw.js', TemplateView.as_view(template_name='sw.js', content_type='application/javascript'), name='sw.js'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

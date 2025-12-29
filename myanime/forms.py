@@ -6,6 +6,8 @@ from django.urls import reverse
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from django.contrib.auth.models import User
+from .models import Profile
 
 class TelegramPasswordResetForm(PasswordResetForm):
     def save(self, domain_override=None, subject_template_name=None,
@@ -48,3 +50,18 @@ class TelegramPasswordResetForm(PasswordResetForm):
             requests.post(url, data=data, timeout=5)
         except Exception as e:
             print(f"Ошибка отправки в Telegram: {e}")
+
+class UserUpdateForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = User
+        fields = ['username', 'email']
+
+class ProfileUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Profile
+        fields = ['avatar', 'bio', 'auto_next', 'auto_skip_intro',
+                  'backdrop_blur', 'default_quality', 'dark_theme']
+        # Исключаем telegram_id, так как он обновляется через бота,
+        # либо оставляем, если хотите править вручную.

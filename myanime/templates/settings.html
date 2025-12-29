@@ -86,7 +86,7 @@
                         <p>Автоматически нажимать "Пропустить опенинг".</p>
                     </div>
                     <label class="switch">
-                        <input type="checkbox" name="auto_skip" {% if user.profile.auto_skip_intro %}checked{% endif %}>
+                        <input type="checkbox" name="auto_skip_intro" {% if user.profile.auto_skip_intro %}checked{% endif %}>
                         <span class="slider"></span>
                     </label>
                 </div>
@@ -96,7 +96,7 @@
                         <h3>Качество видео по умолчанию</h3>
                         <p>Выбирать это качество при старте.</p>
                     </div>
-                    <select name="quality" class="st-select">
+                    <select name="default_quality" class="st-select">
                         <option value="1080" {% if user.profile.default_quality == '1080' %}selected{% endif %}>1080p (Full HD)</option>
                         <option value="720" {% if user.profile.default_quality == '720' %}selected{% endif %}>720p (HD)</option>
                         <option value="480" {% if user.profile.default_quality == '480' %}selected{% endif %}>480p (SD)</option>

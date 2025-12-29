@@ -10,6 +10,7 @@ from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView
 from django.contrib import messages
 import requests
+from .forms import ProfileUpdateForm, UserUpdateForm
 from decouple import config
 from django.db.models import Count
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -294,29 +295,26 @@ def settings_view(request):
     profile, created = Profile.objects.get_or_create(user=request.user)
 
     if request.method == 'POST':
-        user = request.user
-        user.username = request.POST.get('username')
-        user.email = request.POST.get('email')
-        user.save()
-        profile.bio = request.POST.get('bio')
-        profile.auto_next = request.POST.get('auto_next') == 'on'
-        profile.auto_skip_intro = request.POST.get('auto_skip') == 'on'
-        profile.backdrop_blur = request.POST.get('backdrop_blur') == 'on'
+        u_form = UserUpdateForm(request.POST, instance=request.user)
+        p_form = ProfileUpdateForm(request.POST, request.FILES, instance=profile)
 
-        quality = request.POST.get('quality')
-        if quality in ['1080', '720', '480']:
-            profile.default_quality = quality
-        profile.telegram_id = request.POST.get('telegram_id')
+        if u_form.is_valid() and p_form.is_valid():
+            u_form.save()
+            p_form.save()
+            messages.success(request, 'Настройки успешно сохранены!')
+            return redirect('settings')
+        else:
+            messages.error(request, 'Ошибка при сохранении. Проверьте консоль.')
+    else:
+        u_form = UserUpdateForm(instance=request.user)
+        p_form = ProfileUpdateForm(instance=profile)
 
-        if 'avatar' in request.FILES:
-            profile.avatar = request.FILES['avatar']
-
-        profile.save()
-
-        messages.success(request, 'Настройки успешно сохранены!')
-        return redirect('settings')
-
-    return render(request, 'settings.html', {'user': request.user})
+    context = {
+        'u_form': u_form,
+        'p_form': p_form,
+        'user': request.user
+    }
+    return render(request, 'settings.html', context)
 
 @login_required
 def start_telegram_auth(request):
