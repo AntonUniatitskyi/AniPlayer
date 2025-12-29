@@ -1,0 +1,21 @@
+{
+  "name": "AniPlayer",
+  "short_name": "AniPlayer",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a1a",
+  "theme_color": "#e50914",
+  "description": "Лучший аниме плеер для друзей",
+  "icons": [
+    {
+      "src": "/static/img/icon.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/static/img/icon.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}

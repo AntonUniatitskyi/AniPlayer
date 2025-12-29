@@ -22,7 +22,11 @@
         <div class="profile-header">
             <div class="profile-left">
                 <div class="avatar-placeholder">
-                    {{ user.username|make_list|first|upper }}
+                    {% if user.profile.avatar %}
+                         <img src="{{ user.profile.avatar.url }}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit;">
+                    {% else %}
+                        {{ user.username|make_list|first|upper }}
+                    {% endif %}
                 </div>
                 <div class="profile-text">
                     <h1>{{ user.username }}</h1>
@@ -34,8 +38,8 @@
             </div>
 
             <div class="profile-actions">
-                <a href="{% url 'settings' %}" class="action-btn" title="Настройки">⚙️ Настройки</a>
-                <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                <a href="{% url 'settings' %}" class="action-btn settings-btn" title="Настройки">⚙️ Настройки</a>
+                <form action="{% url 'logout' %}" method="post" style="display:contents;">
                     {% csrf_token %}
                     <button type="submit" class="action-btn logout">Выйти</button>
                 </form>
@@ -44,6 +48,11 @@
     </div>
 
     <div class="library-controls">
+        <div class="search-local">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="librarySearch" placeholder="Фильтр аниме..." onkeyup="filterLibrary()">
+        </div>
+
         <div class="tabs-wrapper">
             <div class="tabs">
                 <button class="tab-btn active" onclick="openTab(event, 'watching')">
@@ -59,11 +68,6 @@
                     Брошено <span class="count">{{ dropped.count }}</span>
                 </button>
             </div>
-        </div>
-
-        <div class="search-local">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="librarySearch" placeholder="Фильтр..." onkeyup="filterLibrary()">
         </div>
     </div>
 
@@ -93,6 +97,11 @@
         margin: 0 auto;
         padding: 40px 20px;
     }
+    .breadcrumbs {
+        margin-bottom: 20px; color: var(--text-sec); font-size: 0.9rem; display: flex; align-items: center; gap: 8px;
+    }
+    .breadcrumbs a { color: var(--text-sec); text-decoration: none; display: flex; align-items: center; gap: 5px; transition: 0.2s;}
+    .breadcrumbs a:hover { color: var(--primary); }
 
     /* === ПРОФИЛЬ === */
     .profile-header-wrapper {
@@ -100,16 +109,27 @@
         margin-bottom: 50px;
         border-radius: 24px;
         overflow: hidden;
-        box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.15); /* Тень стала мягче для светлой темы */
         background: var(--surface);
+        border: 1px solid var(--border); /* Добавил рамку, чтобы на белом фоне границы были видны */
     }
 
     .profile-banner {
         height: 200px;
-        /* Градиент с шумом (имитация Netflix профиля) */
+        /* ИСПРАВЛЕНИЕ: Используем переменные вместо #18181b */
         background: radial-gradient(circle at top right, rgba(139, 92, 246, 0.4), transparent 60%),
-            linear-gradient(135deg, #18181b 0%, #09090b 100%);
+                    linear-gradient(135deg, var(--surface-hover) 0%, var(--surface) 100%);
         position: relative;
+    }
+
+    /* Специальный стиль для баннера, если фон слишком светлый - добавим паттерн или затемнение */
+    .profile-banner::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-color: var(--primary);
+        opacity: 0.05; /* Еле заметный оттенок основного цвета */
+        pointer-events: none;
     }
 
     .profile-header {
@@ -125,424 +145,239 @@
         align-items: flex-end;
         gap: 30px;
         transform: translateY(-40px);
-        /* Аватарка наезжает на баннер */
+        margin-bottom: -20px;
     }
 
     .avatar-placeholder {
-        width: 120px;
-        height: 120px;
-        background: #09090b;
-        color: #fff;
+        width: 120px; height: 120px;
+        /* ИСПРАВЛЕНИЕ: Фон теперь зависит от темы, а не жестко черный */
+        background: var(--surface-hover);
+        color: var(--primary); /* Буква теперь цветная */
         border: 4px solid var(--surface);
-        font-size: 3.5rem;
-        font-weight: 800;
+        font-size: 3.5rem; font-weight: 800;
         border-radius: 30px;
-        /* Squircle */
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        flex-shrink: 0;
     }
 
-    .profile-text {
-        padding-bottom: 5px;
-    }
+    .profile-text { padding-bottom: 25px; }
 
     .profile-text h1 {
         margin: 0 0 8px 0;
-        font-size: 2.5rem;
-        font-weight: 800;
+        font-size: 2.5rem; font-weight: 800;
         letter-spacing: -0.03em;
         color: var(--text-main);
+        /* Небольшая тень, чтобы текст не сливался с фоном в любых темах */
+        text-shadow: 0 2px 10px rgba(0,0,0,0.05);
     }
 
-    .stats-row {
-        display: flex;
-        gap: 12px;
-    }
+    .stats-row { display: flex; gap: 12px; flex-wrap: wrap; }
 
     .stat-badge {
         background: var(--input-bg);
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        color: var(--text-sec);
-        font-weight: 500;
-        border: 1px solid var(--border);
+        padding: 6px 12px; border-radius: 8px;
+        font-size: 0.85rem; color: var(--text-sec);
+        font-weight: 500; border: 1px solid var(--border);
     }
 
     .profile-actions {
-        display: flex;
-        gap: 12px;
+        display: flex; gap: 12px;
         padding-bottom: 40px;
     }
 
     .action-btn {
-        padding: 10px 20px;
-        border-radius: 10px;
-        text-decoration: none;
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: 0.2s;
-        cursor: pointer;
+        padding: 10px 20px; border-radius: 10px;
+        text-decoration: none; font-weight: 600; font-size: 0.9rem;
+        transition: 0.2s; cursor: pointer;
         border: 1px solid var(--border);
-        background: transparent;
-        color: var(--text-main);
+        background: transparent; color: var(--text-main);
+        display: inline-flex; align-items: center; justify-content: center;
     }
-
-    .action-btn:hover {
-        background: var(--surface-hover);
-        border-color: var(--text-sec);
-    }
-
-    .action-btn.logout:hover {
-        background: rgba(239, 68, 68, 0.1);
-        color: #ef4444;
-        border-color: #ef4444;
-    }
+    .action-btn:hover { background: var(--surface-hover); border-color: var(--text-sec); }
+    .action-btn.logout:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: #ef4444; }
 
     /* === КОНТРОЛЫ === */
     .library-controls {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 30px;
-        gap: 20px;
-        flex-wrap: wrap;
+        display: flex; justify-content: space-between; align-items: center;
+        margin-bottom: 30px; gap: 20px; flex-wrap: wrap;
     }
 
-    /* Поиск */
-    .search-local {
-        position: relative;
-        width: 300px;
-    }
-
+    .search-local { position: relative; width: 300px; }
     .search-local input {
-        width: 100%;
-        padding: 12px 16px;
-        padding-left: 44px;
-        background: var(--input-bg);
-        border: 1px solid transparent;
-        border-radius: 12px;
-        color: var(--text-main);
-        outline: none;
-        transition: 0.2s;
+        width: 100%; padding: 12px 16px; padding-left: 44px;
+        background: var(--input-bg); border: 1px solid transparent;
+        border-radius: 12px; color: var(--text-main); outline: none; transition: 0.2s;
+        box-sizing: border-box;
     }
-
     .search-local input:focus {
-        background: var(--bg-body);
-        border-color: var(--primary);
+        background: var(--bg-body); border-color: var(--primary);
         box-shadow: 0 0 0 3px var(--primary-glow);
     }
-
     .search-icon {
-        position: absolute;
-        left: 14px;
-        top: 50%;
-        transform: translateY(-50%);
-        opacity: 0.5;
+        position: absolute; left: 14px; top: 50%;
+        transform: translateY(-50%); opacity: 0.5; pointer-events: none;
+        color: var(--text-sec); /* Чтобы иконка тоже красилась */
     }
 
-    /* Табы */
-    .tabs-wrapper {
-        overflow-x: auto;
-        padding-bottom: 5px;
-    }
-
+    .tabs-wrapper { overflow-x: auto; padding-bottom: 5px; }
     .tabs {
-        display: inline-flex;
-        background: var(--surface);
-        padding: 4px;
-        border-radius: 14px;
+        display: inline-flex; background: var(--surface);
+        padding: 4px; border-radius: 14px;
         border: 1px solid var(--border);
     }
 
     .tab-btn {
-        background: transparent;
-        border: none;
-        color: var(--text-sec);
-        padding: 8px 20px;
-        border-radius: 10px;
-        cursor: pointer;
+        background: transparent; border: none; color: var(--text-sec);
+        padding: 8px 20px; border-radius: 10px; cursor: pointer;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        font-size: 0.9rem;
-        font-weight: 600;
-        white-space: nowrap;
+        font-size: 0.9rem; font-weight: 600; white-space: nowrap;
     }
-
-    .tab-btn:hover {
-        color: var(--text-main);
-    }
-
+    .tab-btn:hover { color: var(--text-main); }
     .tab-btn.active {
-        background: var(--input-bg);
-        color: var(--text-main);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        background: var(--input-bg); color: var(--text-main);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Тень мягче */
     }
-
     .tab-btn .count {
-        background: rgba(255, 255, 255, 0.1);
+        background: rgba(125, 125, 125, 0.15); /* Нейтральный фон для цифр */
         padding: 2px 8px;
-        margin-left: 8px;
-        border-radius: 6px;
-        font-size: 0.75rem;
+        margin-left: 8px; border-radius: 6px; font-size: 0.75rem;
+        color: var(--text-main);
     }
+    .tab-btn.active .count { background: var(--text-main); color: var(--bg-body); }
 
-    .tab-btn.active .count {
-        background: var(--text-main);
-        color: var(--bg-body);
-    }
+    /* === СЕТКА === */
+    .tab-content { display: none; animation: fadeIn 0.4s ease; }
+    .tab-content.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* === СЕТКА (Оптимизация под Include) === */
-    .tab-content {
-        display: none;
-        animation: fadeIn 0.4s ease;
-    }
-
-    .tab-content.active {
-        display: block;
-    }
-
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translateY(10px);
-        }
-
-        to {
-            opacity: 1;
-            transform: translateY(0);
-        }
-    }
-
-    /* Переопределение сетки для библиотеки */
     .anime-grid {
         display: grid;
         grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
         gap: 24px 20px;
     }
 
-    /* === PREMIUM CARDS STYLE (Дублируем важное для include) === */
+    /* === PREMIUM CARDS STYLE === */
     .anime-card {
-        background: transparent;
-        border: none;
-        border-radius: 16px;
-        text-decoration: none;
-        color: inherit;
-        display: flex;
-        flex-direction: column;
+        background: transparent; border: none; border-radius: 16px;
+        text-decoration: none; color: inherit; display: flex; flex-direction: column;
         transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        contain: content;
-        will-change: transform;
+        contain: content; position: relative;
     }
-
-    .anime-card:hover {
-        transform: translateY(-8px);
-        z-index: 2;
-    }
+    .anime-card:hover { transform: translateY(-8px); z-index: 2; }
 
     .poster-wrapper {
-        position: relative;
-        aspect-ratio: 455/650;
-        border-radius: 12px;
-        overflow: hidden;
-        background: #18181b;
+        position: relative; aspect-ratio: 455/650; border-radius: 12px;
+        overflow: hidden; background: var(--surface-hover); /* Заменил черный на переменную */
         box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
         transition: box-shadow 0.3s ease;
     }
-
     .anime-card:hover .poster-wrapper {
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2), 0 20px 40px -10px rgba(0, 0, 0, 0.3);
     }
-
     .poster-wrapper img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0;
+        width: 100%; height: 100%; object-fit: cover; opacity: 1;
         transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        will-change: transform, opacity;
-        backface-visibility: hidden;
-        transform: translateZ(0);
     }
+    .anime-card:hover .poster-wrapper img { transform: scale(1.06); }
 
-    .poster-wrapper:not(.loading) img {
-        opacity: 1;
-    }
-
-    .anime-card:hover .poster-wrapper img {
-        transform: scale(1.06);
-    }
-
-    /* Оверлей Play */
     .card-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: 0.3s;
+        position: absolute; inset: 0; background: rgba(0, 0, 0, 0.3);
+        display: flex; align-items: center; justify-content: center;
+        opacity: 0; transition: 0.3s;
     }
-
-    .anime-card:hover .card-overlay {
-        opacity: 1;
-    }
+    .anime-card:hover .card-overlay { opacity: 1; }
 
     .play-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding-left: 4px;
-        transform: scale(0.8);
-        transition: 0.3s;
+        width: 48px; height: 48px; border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.4); color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        padding-left: 4px; transform: scale(0.8); transition: 0.3s;
     }
+    .anime-card:hover .play-icon { transform: scale(1); background: var(--primary); border-color: var(--primary); }
 
-    .anime-card:hover .play-icon {
-        transform: scale(1);
-        background: var(--primary);
-        border-color: var(--primary);
-    }
-
-    .card-info {
-        padding: 12px 4px 0 4px;
-    }
-
+    .card-info { padding: 12px 4px 0 4px; }
     .card-title {
-        font-size: 0.85rem;
-        line-height: 1.25;
-        font-weight: 700;
-        color: var(--text-main);
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
+        font-size: 0.85rem; line-height: 1.25; font-weight: 700;
+        color: var(--text-main); display: -webkit-box;
+        -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
     }
+    .anime-card:hover .card-title { color: var(--primary); }
 
-    .anime-card:hover .card-title {
-        color: var(--primary);
-    }
-
-    .card-meta {
-        display: flex;
-        gap: 8px;
-        margin-top: 6px;
-        align-items: center;
-    }
-
-    .date-badge {
-        font-size: 0.75rem;
-        color: var(--text-sec);
-        font-weight: 500;
-    }
-
-    /* Статусы */
     .status-badge-overlay {
-        position: absolute;
-        top: 8px;
-        left: 8px;
-        z-index: 2;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: #fff;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-        backdrop-filter: blur(8px);
-        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        position: absolute; top: 8px; left: 8px; z-index: 2;
+        padding: 4px 8px; border-radius: 6px; font-size: 0.7rem; font-weight: 700;
+        color: #fff; text-transform: uppercase; letter-spacing: 0.05em;
+        backdrop-filter: blur(8px); box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
     }
+    .anime-card[data-status="watching"] .status-badge-overlay { background: rgba(16, 185, 129, 0.9); }
+    .anime-card[data-status="planned"] .status-badge-overlay { background: rgba(59, 130, 246, 0.9); }
+    .anime-card[data-status="completed"] .status-badge-overlay { background: rgba(139, 92, 246, 0.9); }
+    .anime-card[data-status="dropped"] .status-badge-overlay { background: rgba(239, 68, 68, 0.9); }
 
-    .anime-card[data-status="watching"] .status-badge-overlay {
-        background: rgba(16, 185, 129, 0.9);
-    }
-
-    .anime-card[data-status="planned"] .status-badge-overlay {
-        background: rgba(59, 130, 246, 0.9);
-    }
-
-    .anime-card[data-status="completed"] .status-badge-overlay {
-        background: rgba(139, 92, 246, 0.9);
-    }
-
-    .anime-card[data-status="dropped"] .status-badge-overlay {
-        background: rgba(239, 68, 68, 0.9);
-    }
-
-    /* Пустое состояние */
     .empty-state {
-        grid-column: 1/-1;
-        text-align: center;
-        padding: 80px 20px;
-        border: 1px dashed var(--border);
-        border-radius: 20px;
-        background: transparent;
+        grid-column: 1/-1; text-align: center; padding: 80px 20px;
+        border: 1px dashed var(--border); border-radius: 20px;
     }
 
-    .empty-icon {
-        font-size: 3rem;
-        display: block;
-        margin-bottom: 20px;
-        opacity: 0.3;
-    }
-
-    .btn-primary {
-        display: inline-block;
-        background: var(--primary);
-        color: #fff;
-        padding: 10px 20px;
-        border-radius: 8px;
-        text-decoration: none;
-        font-weight: 600;
-        margin-top: 15px;
-    }
-
-    /* АДАПТИВ */
+    /* === АДАПТИВ (MOBILE) === */
     @media (max-width: 768px) {
-        .library-controls {
-            flex-direction: column-reverse;
-            align-items: stretch;
-            gap: 15px;
+        .library-container {
+            padding: 20px 10px;
         }
 
-        .search-local {
-            width: 100%;
-            max-width: none;
-        }
-
+        .profile-banner { height: 140px; }
         .profile-header {
-            flex-direction: column;
-            align-items: center;
-            text-align: center;
-            padding-bottom: 30px;
+            flex-direction: column; align-items: center; text-align: center;
+            padding: 0 15px 25px 15px;
         }
-
         .profile-left {
-            flex-direction: column;
-            align-items: center;
-            transform: translateY(-50px);
-            gap: 15px;
-            margin-bottom: -30px;
+            flex-direction: column; align-items: center;
+            transform: translateY(-50px); margin-bottom: -30px;
+            gap: 15px; width: 100%;
         }
+        .avatar-placeholder {
+            width: 100px; height: 100px; font-size: 2.5rem; border-width: 3px;
+        }
+        .profile-text { padding-bottom: 0; }
+        .profile-text h1 { font-size: 1.8rem; }
+        .stats-row { justify-content: center; }
 
         .profile-actions {
-            width: 100%;
-            justify-content: center;
-            padding-bottom: 0;
+            width: 100%; display: grid; grid-template-columns: 1fr 1fr;
+            gap: 10px; padding-bottom: 0; margin-top: 20px;
         }
+        .action-btn { width: 100%; box-sizing: border-box; }
+
+        .library-controls {
+            flex-direction: column; align-items: stretch;
+            gap: 15px; margin-top: 0;
+        }
+        .search-local { width: 100%; }
+
+        .tabs-wrapper {
+            width: 100%; overflow-x: auto; margin-left: -10px;
+            width: calc(100% + 20px); padding: 0 10px 10px 10px;
+            -ms-overflow-style: none; scrollbar-width: none;
+        }
+        .tabs-wrapper::-webkit-scrollbar { display: none; }
+
+        .tabs { display: flex; width: max-content; background: transparent; border: none; padding: 0; }
+        .tab-btn {
+            background: var(--surface); border: 1px solid var(--border);
+            margin-right: 10px; white-space: nowrap;
+        }
+        .tab-btn.active {
+            background: var(--primary); color: #fff; border-color: var(--primary);
+        }
+        .tab-btn.active .count { background: #fff; color: var(--primary); }
 
         .anime-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
+            grid-template-columns: repeat(2, 1fr); gap: 15px 12px;
         }
+        .card-title { font-size: 0.8rem; }
+        .card-overlay { display: none; }
     }
 </style>
 

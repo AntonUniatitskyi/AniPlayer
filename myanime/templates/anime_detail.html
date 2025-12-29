@@ -3,10 +3,6 @@
 {% block title %}{{ anime.name_ru }}{% endblock %}
 
 {% block content %}
-    <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
-    <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
-
     {% if not user.is_authenticated or user.profile.backdrop_blur %}
         <div class="anime-backdrop">
             <div class="backdrop-image" style="background-image: url('{{ anime.poster_path }}');"></div>
@@ -425,13 +421,22 @@
 
     /* Фон: В светлой теме градиент уходит в светлый, текст читается */
     .anime-backdrop {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: -1;
+        position: fixed;
+        inset: 0;
+        z-index: -1;
         pointer-events: none;
+        background-color: var(--bg-body);
+        overflow: hidden;
     }
     .backdrop-image {
-        width: 100%; height: 100%; background-size: cover; background-position: center top;
-        filter: blur(60px) brightness(0.5); opacity: 0.5; /* Чуть темнее для контраста */
+        width: 100%;
+        height: 100%;
+        background-size: cover;
+        background-position: center top;
+        filter: blur(60px) brightness(0.5);
+        opacity: 0.5; /* Чуть темнее для контраста */
         transform: scale(1.1);
+        background-repeat: no-repeat;
     }
     .backdrop-gradient {
         position: absolute; inset: 0;
@@ -607,23 +612,309 @@
         .video-wrapper { width: 100%; height: auto; }
         .playlist-sidebar { height: 350px; border-left: none; border-top: 1px solid var(--border); min-height: auto; }
     }
+    /* === МОБИЛЬНЫЙ ПЛЕЕР (Исправление Plyr) === */
+    @media (max-width: 768px) {
+        /* Скрываем слайдер громкости (полоску), оставляем только иконку */
+        .plyr--full-ui.plyr--video .plyr__control--volume input[type=range] {
+            display: none !important;
+        }
+
+        /* Делаем так, чтобы кнопка громкости не занимала лишнее место */
+        .plyr--full-ui.plyr--video .plyr__volume {
+            width: auto;
+            min-width: auto;
+            flex: 0 0 auto;
+        }
+
+        /* Заставляем шкалу прогресса (timeline) занять все свободное место */
+        .plyr--full-ui.plyr--video .plyr__progress__container {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Немного уменьшаем отступы между кнопками для экономии места */
+        .plyr--full-ui.plyr--video .plyr__controls .plyr__control {
+            padding: 7px;
+            margin-left: 2px;
+        }
+
+        /* Переносим таймеры (00:00 / 24:00) чуть компактнее */
+        .plyr__time {
+            font-size: 12px;
+            padding: 0 5px;
+        }
+    }
 
     .plyr--video { --plyr-color-main: var(--primary); }
+
     </style>
 
     <script>
-        const userSettings = {
-            {% if user.is_authenticated %}
-                autoNext: {{ user.profile.auto_next|yesno:"true,false" }},
-                autoSkip: {{ user.profile.auto_skip_intro|yesno:"true,false" }},
-                defaultQuality: parseInt("{{ user.profile.default_quality|default:'1080' }}"),
-            {% else %}
-                autoNext: true,
-                autoSkip: false,
-                defaultQuality: 1080,
-            {% endif %}
-        };
+        // Оборачиваем всю логику в функцию initDetail
+        function initDetail() {
+            const videoElement = document.getElementById('player');
+            const skipOpBtn = document.getElementById('skipOp');
+            const skipEdBtn = document.getElementById('skipEd');
 
+            // Если плеера на странице нет (например, нет эпизодов), выходим
+            if (!videoElement) return;
+
+            // Данные пользователя (рендерим один раз)
+            const userSettings = {
+                {% if user.is_authenticated %}
+                    autoNext: {{ user.profile.auto_next|yesno:"true,false" }},
+                    autoSkip: {{ user.profile.auto_skip_intro|yesno:"true,false" }},
+                    defaultQuality: parseInt("{{ user.profile.default_quality|default:'1080' }}"),
+                {% else %}
+                    autoNext: true,
+                    autoSkip: false,
+                    defaultQuality: 1080,
+                {% endif %}
+            };
+
+            // Глобальные переменные для плеера
+            let hls = null;
+            // Сохраняем плеер в window, чтобы Swup мог его уничтожить при уходе
+            window.player = null;
+
+            let currentBtn = null;
+            let opStart = 0, opEnd = 0, edStart = 0, edEnd = 0;
+            const lastEpisodeId = "{{ last_episode_id|default:'null' }}";
+            const lastTimestamp = parseInt("{{ last_timestamp|default:'0' }}");
+            let saveInterval = null;
+            let currentQuality = userSettings.defaultQuality;
+
+            // Конфигурация Plyr
+            const defaultOptions = {
+                controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
+                settings: ['quality', 'speed'],
+                quality: { default: currentQuality, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(newQ) },
+                debug: false
+            };
+
+            const hlsConfig = {
+                enableWorker: true, lowLatencyMode: false, backBufferLength: 90,
+                maxBufferLength: 30, maxMaxBufferLength: 600,
+                manifestLoadingTimeOut: 20000, fragLoadingTimeOut: 20000, levelLoadingTimeOut: 20000,
+                startLevel: -1
+            };
+
+            function initPlayer() {
+                window.player = new Plyr(videoElement, defaultOptions);
+
+                window.player.on('timeupdate', () => {
+                    const t = window.player.currentTime;
+                    if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'flex';
+                    else skipOpBtn.style.display = 'none';
+                    if (edStart > 0 && edEnd > 0 && t >= edStart && t < edEnd) skipEdBtn.style.display = 'flex';
+                    else skipEdBtn.style.display = 'none';
+
+                    if (userSettings.autoSkip && opStart > 0 && opEnd > 0) {
+                        if (t >= opStart && t < opEnd) {
+                            window.player.currentTime = opEnd;
+                            if(typeof showToast === 'function') showToast('Опенинг пропущен', 'success');
+                        }
+                    }
+                });
+                window.player.on('playing', () => { if (!saveInterval) saveInterval = setInterval(saveProgress, 10000); });
+                window.player.on('pause', () => { saveProgress(); clearInterval(saveInterval); saveInterval = null; });
+                window.player.on('ended', () => {
+                    if (userSettings.autoNext) {
+                        if (!currentBtn) return;
+                        const nextBtn = currentBtn.nextElementSibling;
+                        if (nextBtn && nextBtn.classList.contains('ep-row')) {
+                            if(typeof showToast === 'function') showToast('Переключение серии...', 'success');
+                            setTimeout(() => {
+                                nextBtn.click();
+                                nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                            }, 1000);
+                        }
+                    }
+                });
+            }
+
+            function saveProgress() {
+                if (!currentBtn || !window.player) return;
+                const time = Math.floor(window.player.currentTime);
+                const epId = currentBtn.getAttribute('data-id');
+                if (time > 5) {
+                    fetch('/api/save-progress/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                        body: JSON.stringify({ episode_id: epId, time: time })
+                    }).catch(() => { });
+                }
+            }
+
+            if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (window.player) { window.player.currentTime = opEnd; window.player.play(); } });
+            if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (window.player) { window.player.currentTime = edEnd; window.player.play(); } });
+
+            function updateQuality(newQuality) {
+                currentQuality = newQuality;
+                if (!hls) return;
+                if (hls.levels && hls.levels.length > 1) {
+                    const levelIndex = hls.levels.findIndex(l => l.height === newQuality);
+                    if (levelIndex !== -1) { hls.currentLevel = levelIndex; return; }
+                }
+                const url = getUrlForQuality(currentBtn, newQuality);
+                if (url) loadStream(url, window.player.currentTime, window.player.playing);
+            }
+
+            function loadStream(url, startTime = 0, autoPlay = false) {
+                if (Hls.isSupported()) {
+                    if (hls) hls.destroy();
+                    hls = new Hls(hlsConfig);
+                    hls.loadSource(url);
+                    hls.attachMedia(videoElement);
+                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                        const availableQualities = hls.levels.map(l => l.height);
+                        if (availableQualities.length > 1) {
+                            availableQualities.sort((a, b) => b - a);
+                            window.player.config.quality.options = availableQualities;
+                        }
+                        if (startTime > 0) videoElement.currentTime = startTime;
+                        if (autoPlay) window.player.play().catch(() => {});
+                    });
+                    hls.on(Hls.Events.ERROR, function (event, data) {
+                        if (data.fatal) {
+                            switch (data.type) {
+                                case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
+                                case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
+                                default: hls.destroy(); break;
+                            }
+                        }
+                    });
+                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    videoElement.src = url;
+                    videoElement.addEventListener('loadedmetadata', () => {
+                        if (startTime > 0) videoElement.currentTime = startTime;
+                        if (autoPlay) window.player.play();
+                    });
+                }
+            }
+
+            function getUrlForQuality(btn, q) {
+                if (!btn) return null;
+                if (q == 1080) return btn.getAttribute('data-1080');
+                if (q == 720) return btn.getAttribute('data-720');
+                if (q == 480) return btn.getAttribute('data-480');
+                return btn.getAttribute('data-1080');
+            }
+
+            // Делаем функцию глобальной, чтобы ее можно было вызывать из HTML (onclick="selectEpisode(...)")
+            window.selectEpisode = function (btn) {
+                currentBtn = btn;
+                document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                opStart = parseInt(btn.getAttribute('data-op-start')) || 0;
+                opEnd = parseInt(btn.getAttribute('data-op-end')) || 0;
+                edStart = parseInt(btn.getAttribute('data-ed-start')) || 0;
+                edEnd = parseInt(btn.getAttribute('data-ed-end')) || 0;
+                skipOpBtn.style.display = 'none'; skipEdBtn.style.display = 'none';
+                const qualities = [];
+                if (btn.getAttribute('data-1080')) qualities.push(1080);
+                if (btn.getAttribute('data-720')) qualities.push(720);
+                if (btn.getAttribute('data-480')) qualities.push(480);
+                qualities.sort((a, b) => b - a);
+
+                if (!window.player) initPlayer(); // Создаем плеер, если его еще нет
+
+                let selectedQuality = currentQuality;
+                if (!qualities.includes(selectedQuality)) {
+                    selectedQuality = qualities[0];
+                }
+                window.player.config.quality.options = qualities;
+                window.player.config.quality.default = selectedQuality;
+                const url = getUrlForQuality(btn, qualities[0]);
+                loadStream(url, 0, true);
+            };
+
+            const allEpBtns = Array.from(document.querySelectorAll('.ep-row'));
+            const rangeContainer = document.getElementById('rangeContainer');
+            const epSearch = document.getElementById('epSearch');
+            const noEpsFound = document.getElementById('noEpsFound');
+            const CHUNK_SIZE = 50;
+
+            function initEpisodeNav() {
+                if (allEpBtns.length <= CHUNK_SIZE) { if(rangeContainer) rangeContainer.style.display = 'none'; return; }
+                const totalChunks = Math.ceil(allEpBtns.length / CHUNK_SIZE);
+                if(rangeContainer) {
+                    rangeContainer.innerHTML = '';
+                    for (let i = 0; i < totalChunks; i++) {
+                        const start = i * CHUNK_SIZE + 1;
+                        const end = Math.min((i + 1) * CHUNK_SIZE, allEpBtns.length);
+                        const btn = document.createElement('button');
+                        btn.className = 'range-btn';
+                        btn.textContent = `${start}-${end}`;
+                        btn.onclick = () => showRange(i);
+                        rangeContainer.appendChild(btn);
+                    }
+                }
+            }
+
+            function showRange(chunkIndex) {
+                rangeContainer.querySelectorAll('.range-btn').forEach((b, idx) => {
+                    if (idx === chunkIndex) b.classList.add('active'); else b.classList.remove('active');
+                });
+                const startIdx = chunkIndex * CHUNK_SIZE;
+                const endIdx = startIdx + CHUNK_SIZE;
+                allEpBtns.forEach((btn, idx) => {
+                    if (idx >= startIdx && idx < endIdx) btn.style.display = 'flex';
+                    else btn.style.display = 'none';
+                });
+                epSearch.value = ''; noEpsFound.style.display = 'none';
+            }
+
+            // ЗАПУСК ЛОГИКИ
+            initPlayer();
+            initEpisodeNav();
+
+            let targetBtn = null;
+            let startTimestamp = 0;
+            if (lastEpisodeId && lastEpisodeId !== 'null') {
+                targetBtn = document.querySelector(`.ep-row[data-id="${lastEpisodeId}"]`);
+                if (targetBtn) startTimestamp = lastTimestamp;
+            }
+            if (!targetBtn && allEpBtns.length > 0) targetBtn = allEpBtns[0];
+
+            if (targetBtn) {
+                const btnIndex = allEpBtns.indexOf(targetBtn);
+                const chunkIndex = Math.floor(btnIndex / CHUNK_SIZE);
+                if (rangeContainer && rangeContainer.style.display !== 'none') showRange(chunkIndex);
+                else allEpBtns.forEach(b => b.style.display = 'flex');
+
+                currentBtn = targetBtn;
+                targetBtn.classList.add('active');
+                opStart = parseInt(targetBtn.getAttribute('data-op-start')) || 0;
+                opEnd = parseInt(targetBtn.getAttribute('data-op-end')) || 0;
+                edStart = parseInt(targetBtn.getAttribute('data-ed-start')) || 0;
+                edEnd = parseInt(targetBtn.getAttribute('data-ed-end')) || 0;
+                const url = getUrlForQuality(targetBtn, userSettings.defaultQuality) || getUrlForQuality(targetBtn, 1080) || getUrlForQuality(targetBtn, 720);
+                if (url) loadStream(url, startTimestamp, false);
+                setTimeout(() => { targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
+            }
+
+            if(epSearch) {
+                epSearch.addEventListener('input', (e) => {
+                    const val = e.target.value.toLowerCase();
+                    if (val === '') {
+                        const activeRangeBtn = rangeContainer.querySelector('.range-btn.active');
+                        if (activeRangeBtn) activeRangeBtn.click(); else allEpBtns.forEach(b => b.style.display = 'flex');
+                        return;
+                    }
+                    rangeContainer.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
+                    let visibleCount = 0;
+                    allEpBtns.forEach(btn => {
+                        if (btn.innerText.toLowerCase().includes(val)) { btn.style.display = 'flex'; visibleCount++; }
+                        else btn.style.display = 'none';
+                    });
+                    noEpsFound.style.display = visibleCount === 0 ? 'block' : 'none';
+                });
+            }
+        }
+
+        // Эти функции нужно оставить снаружи initDetail, так как они вызываются по onclick из HTML
+        // Но внутри они делают AJAX запросы, которые не зависят от состояния DOM, так что все ок.
         function changeStatus(select, animeSlug) {
             const status = select.value;
             select.style.borderColor = 'var(--text-sec)';
@@ -648,8 +939,6 @@
         function toggleSubscription(animeSlug) {
             const btn = document.getElementById('subBtn');
             if(!btn) return;
-
-            // Эффект нажатия
             btn.style.transform = "scale(0.9)";
             setTimeout(() => btn.style.transform = "", 150);
 
@@ -673,237 +962,11 @@
             .catch(err => console.error(err));
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const videoElement = document.getElementById('player');
-            const skipOpBtn = document.getElementById('skipOp');
-            const skipEdBtn = document.getElementById('skipEd');
+        // 🔥 ЗАПУСК СКРИПТА
+        // Эта конструкция нужна для Swup.
+        // Если страница загружается впервые - сработает сразу.
+        // Если переход через Swup - плагин ScriptPlugin просто выполнит этот код.
+        initDetail();
 
-            if (!videoElement) return;
-
-            let hls = null;
-            let player = null;
-            let currentBtn = null;
-            let opStart = 0, opEnd = 0, edStart = 0, edEnd = 0;
-            const lastEpisodeId = "{{ last_episode_id|default:'null' }}";
-            const lastTimestamp = parseInt("{{ last_timestamp|default:'0' }}");
-            let saveInterval = null;
-            let currentQuality = userSettings.defaultQuality;
-
-            const defaultOptions = {
-                controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'pip', 'fullscreen'],
-                settings: ['quality', 'speed'],
-                quality: { default: currentQuality, options: [1080, 720, 480], forced: true, onChange: (newQ) => updateQuality(newQ) },
-                debug: false
-            };
-
-            const hlsConfig = {
-                enableWorker: true, lowLatencyMode: false, backBufferLength: 90,
-                maxBufferLength: 30, maxMaxBufferLength: 600,
-                manifestLoadingTimeOut: 20000, fragLoadingTimeOut: 20000, levelLoadingTimeOut: 20000,
-                startLevel: -1
-            };
-
-            function initPlayer() {
-                player = new Plyr(videoElement, defaultOptions);
-                player.on('timeupdate', () => {
-                    const t = player.currentTime;
-                    if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'flex';
-                    else skipOpBtn.style.display = 'none';
-                    if (edStart > 0 && edEnd > 0 && t >= edStart && t < edEnd) skipEdBtn.style.display = 'flex';
-                    else skipEdBtn.style.display = 'none';
-
-                    if (userSettings.autoSkip && opStart > 0 && opEnd > 0) {
-                        if (t >= opStart && t < opEnd) {
-                            player.currentTime = opEnd;
-                            if(typeof showToast === 'function') showToast('Опенинг пропущен', 'success');
-                        }
-                    }
-                });
-                player.on('playing', () => { if (!saveInterval) saveInterval = setInterval(saveProgress, 10000); });
-                player.on('pause', () => { saveProgress(); clearInterval(saveInterval); saveInterval = null; });
-                player.on('ended', () => {
-                    if (userSettings.autoNext) {
-                        if (!currentBtn) return;
-                        const nextBtn = currentBtn.nextElementSibling;
-                        if (nextBtn && nextBtn.classList.contains('ep-row')) {
-                            if(typeof showToast === 'function') showToast('Переключение серии...', 'success');
-                            setTimeout(() => {
-                                nextBtn.click();
-                                nextBtn.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            }, 1000);
-                        }
-                    }
-                });
-            }
-
-            function saveProgress() {
-                if (!currentBtn || !player) return;
-                const time = Math.floor(player.currentTime);
-                const epId = currentBtn.getAttribute('data-id');
-                if (time > 5) {
-                    fetch('/api/save-progress/', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                        body: JSON.stringify({ episode_id: epId, time: time })
-                    }).catch(() => { });
-                }
-            }
-
-            if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (player) { player.currentTime = opEnd; player.play(); } });
-            if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (player) { player.currentTime = edEnd; player.play(); } });
-
-            function updateQuality(newQuality) {
-                currentQuality = newQuality;
-                if (!hls) return;
-                if (hls.levels && hls.levels.length > 1) {
-                    const levelIndex = hls.levels.findIndex(l => l.height === newQuality);
-                    if (levelIndex !== -1) { hls.currentLevel = levelIndex; return; }
-                }
-                const url = getUrlForQuality(currentBtn, newQuality);
-                if (url) loadStream(url, player.currentTime, player.playing);
-            }
-
-            function loadStream(url, startTime = 0, autoPlay = false) {
-                if (Hls.isSupported()) {
-                    if (hls) hls.destroy();
-                    hls = new Hls(hlsConfig);
-                    hls.loadSource(url);
-                    hls.attachMedia(videoElement);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        const availableQualities = hls.levels.map(l => l.height);
-                        if (availableQualities.length > 1) {
-                            availableQualities.sort((a, b) => b - a);
-                            player.config.quality.options = availableQualities;
-                        }
-                        if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) player.play().catch(() => {});
-                    });
-                    hls.on(Hls.Events.ERROR, function (event, data) {
-                        if (data.fatal) {
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
-                                case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
-                                default: hls.destroy(); break;
-                            }
-                        }
-                    });
-                } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-                    videoElement.src = url;
-                    videoElement.addEventListener('loadedmetadata', () => {
-                        if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) player.play();
-                    });
-                }
-            }
-
-            function getUrlForQuality(btn, q) {
-                if (!btn) return null;
-                if (q == 1080) return btn.getAttribute('data-1080');
-                if (q == 720) return btn.getAttribute('data-720');
-                if (q == 480) return btn.getAttribute('data-480');
-                return btn.getAttribute('data-1080');
-            }
-
-            window.selectEpisode = function (btn) {
-                currentBtn = btn;
-                document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                opStart = parseInt(btn.getAttribute('data-op-start')) || 0;
-                opEnd = parseInt(btn.getAttribute('data-op-end')) || 0;
-                edStart = parseInt(btn.getAttribute('data-ed-start')) || 0;
-                edEnd = parseInt(btn.getAttribute('data-ed-end')) || 0;
-                skipOpBtn.style.display = 'none'; skipEdBtn.style.display = 'none';
-                const qualities = [];
-                if (btn.getAttribute('data-1080')) qualities.push(1080);
-                if (btn.getAttribute('data-720')) qualities.push(720);
-                if (btn.getAttribute('data-480')) qualities.push(480);
-                qualities.sort((a, b) => b - a);
-                if (!player) initPlayer();
-                let selectedQuality = currentQuality;
-                if (!qualities.includes(selectedQuality)) {
-                    selectedQuality = qualities[0];
-                }
-                player.config.quality.options = qualities;
-                player.config.quality.default = selectedQuality;
-                const url = getUrlForQuality(btn, qualities[0]);
-                loadStream(url, 0, true);
-            };
-            const allEpBtns = Array.from(document.querySelectorAll('.ep-row'));
-            const rangeContainer = document.getElementById('rangeContainer');
-            const epSearch = document.getElementById('epSearch');
-            const noEpsFound = document.getElementById('noEpsFound');
-            const CHUNK_SIZE = 50;
-
-            function initEpisodeNav() {
-                if (allEpBtns.length <= CHUNK_SIZE) { rangeContainer.style.display = 'none'; return; }
-                const totalChunks = Math.ceil(allEpBtns.length / CHUNK_SIZE);
-                rangeContainer.innerHTML = '';
-                for (let i = 0; i < totalChunks; i++) {
-                    const start = i * CHUNK_SIZE + 1;
-                    const end = Math.min((i + 1) * CHUNK_SIZE, allEpBtns.length);
-                    const btn = document.createElement('button');
-                    btn.className = 'range-btn';
-                    btn.textContent = `${start}-${end}`;
-                    btn.onclick = () => showRange(i);
-                    rangeContainer.appendChild(btn);
-                }
-            }
-
-            function showRange(chunkIndex) {
-                rangeContainer.querySelectorAll('.range-btn').forEach((b, idx) => {
-                    if (idx === chunkIndex) b.classList.add('active'); else b.classList.remove('active');
-                });
-                const startIdx = chunkIndex * CHUNK_SIZE;
-                const endIdx = startIdx + CHUNK_SIZE;
-                allEpBtns.forEach((btn, idx) => {
-                    if (idx >= startIdx && idx < endIdx) btn.style.display = 'flex';
-                    else btn.style.display = 'none';
-                });
-                epSearch.value = ''; noEpsFound.style.display = 'none';
-            }
-
-            initPlayer();
-            initEpisodeNav();
-
-            let targetBtn = null;
-            let startTimestamp = 0;
-            if (lastEpisodeId && lastEpisodeId !== 'null') {
-                targetBtn = document.querySelector(`.ep-row[data-id="${lastEpisodeId}"]`);
-                if (targetBtn) startTimestamp = lastTimestamp;
-            }
-            if (!targetBtn && allEpBtns.length > 0) targetBtn = allEpBtns[0];
-
-            if (targetBtn) {
-                const btnIndex = allEpBtns.indexOf(targetBtn);
-                const chunkIndex = Math.floor(btnIndex / CHUNK_SIZE);
-                if (rangeContainer.style.display !== 'none') showRange(chunkIndex);
-                else allEpBtns.forEach(b => b.style.display = 'flex');
-                currentBtn = targetBtn;
-                targetBtn.classList.add('active');
-                opStart = parseInt(targetBtn.getAttribute('data-op-start')) || 0;
-                opEnd = parseInt(targetBtn.getAttribute('data-op-end')) || 0;
-                edStart = parseInt(targetBtn.getAttribute('data-ed-start')) || 0;
-                edEnd = parseInt(targetBtn.getAttribute('data-ed-end')) || 0;
-                const url = getUrlForQuality(targetBtn, userSettings.defaultQuality) || getUrlForQuality(targetBtn, 1080) || getUrlForQuality(targetBtn, 720);
-                if (url) loadStream(url, startTimestamp, false);
-                setTimeout(() => { targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
-            }
-
-            epSearch.addEventListener('input', (e) => {
-                const val = e.target.value.toLowerCase();
-                if (val === '') {
-                    const activeRangeBtn = rangeContainer.querySelector('.range-btn.active');
-                    if (activeRangeBtn) activeRangeBtn.click(); else allEpBtns.forEach(b => b.style.display = 'flex');
-                    return;
-                }
-                rangeContainer.querySelectorAll('.range-btn').forEach(b => b.classList.remove('active'));
-                let visibleCount = 0;
-                allEpBtns.forEach(btn => {
-                    if (btn.innerText.toLowerCase().includes(val)) { btn.style.display = 'flex'; visibleCount++; }
-                    else btn.style.display = 'none';
-                });
-                noEpsFound.style.display = visibleCount === 0 ? 'block' : 'none';
-            });
-        });
     </script>
 {% endblock %}

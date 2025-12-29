@@ -33,9 +33,9 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = ["*"]
 
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://*.ngrok-free.app",
-# ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.app",
+]
 
 # Application definition
 
@@ -143,3 +143,4 @@ STATICFILES_DIRS = [
 LOGIN_REDIRECT_URL = 'home'
 # Куда перенаправлять после выхода (на главную)
 LOGOUT_REDIRECT_URL = 'home'
+LOGIN_URL = 'login'

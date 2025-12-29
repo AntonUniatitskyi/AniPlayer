@@ -12,6 +12,7 @@ from django.contrib import messages
 import requests
 from decouple import config
 from django.db.models import Count
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile, Subscription
 
@@ -234,7 +235,7 @@ def update_status(request):
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
 
-class UserLibraryView(ListView):
+class UserLibraryView(LoginRequiredMixin, ListView):
     template_name = 'library.html'
     context_object_name = 'library_items'
 

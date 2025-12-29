@@ -1,37 +1,58 @@
 {% if slider_anime %}
-<div class="hero-container">
-    <div class="hero-wrapper">
-        {% for anime in slider_anime %}
-        <div class="hero-slide {% if forloop.first %}active{% endif %}" data-index="{{ forloop.counter0 }}">
+{# Добавляем inline-стили, чтобы предотвратить скачок до загрузки CSS #}
+<div class="hero-container" style="position: relative; overflow: hidden; width: 100%; isolation: isolate;">
+    {% for anime in slider_anime %}
+    <div class="hero-slide {% if forloop.first %}active{% endif %}">
 
-            <div class="hero-bg" style="background-image: url('{{ anime.poster_path }}');"></div>
+        {# Фон #}
+        <div class="hero-bg" style="background-image: url('{{ anime.poster_path }}');"></div>
 
-            <div class="hero-content">
-                <div class="hero-poster">
-                    <img src="{{ anime.poster_path }}" {% if forloop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy" decoding="async"{% endif %} alt="{{ anime.name_ru }}">
-                </div>
-                <div class="hero-info">
-                    <div class="hero-badge">🔥 Новинка</div>
-                    <h2 class="hero-title">{{ anime.name_ru }}</h2>
-                    <p class="hero-desc">{{ anime.description|striptags|truncatechars:150 }}</p>
+        {# Затемнение #}
+        <div class="hero-overlay-gradient"></div>
 
-                    <div class="hero-actions">
-                        <a href="{% url 'anime_detail' slug=anime.code %}" class="btn-watch">
-                            ▶ Смотреть
-                        </a>
-                    </div>
+        {# Контент #}
+        <div class="hero-content">
+            {# Левая колонка: Постер #}
+            <div class="hero-poster-box">
+                {# ВАЖНО: Указываем размеры прямо в HTML (width/height), чтобы браузер знал место #}
+                <img src="{{ anime.poster_path }}"
+                     alt="{{ anime.name_ru }}"
+                     class="poster-img"
+                     width="260"
+                     height="380"
+                     style="max-width: 100%; height: auto; display: block;"
+                     {% if forloop.first %}loading="eager" fetchpriority="high"{% else %}loading="lazy"{% endif %}>
+            </div>
+
+            {# Правая колонка: Инфо #}
+            <div class="hero-info-box">
+                <div class="hero-badge">Смотреть сейчас</div>
+                <h2 class="hero-title">{{ anime.name_ru }}</h2>
+                <div class="hero-desc">{{ anime.description|striptags|truncatechars:180 }}</div>
+
+                <div class="hero-actions">
+                    <a href="{% url 'anime_detail' slug=anime.code %}" class="btn-watch">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                        <span>Смотреть</span>
+                    </a>
                 </div>
             </div>
         </div>
-        {% endfor %}
     </div>
+    {% endfor %}
 
-    <button class="hero-nav prev" onclick="moveSlide(-1)">❮</button>
-    <button class="hero-nav next" onclick="moveSlide(1)">❯</button>
+    {# Навигация #}
+    <button class="hero-nav prev" onclick="moveSlide(-1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <button class="hero-nav next" onclick="moveSlide(1)">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
 
+    {# Точки #}
     <div class="hero-dots">
         {% for anime in slider_anime %}
-        <span class="dot {% if forloop.first %}active{% endif %}" onclick="currentSlide({{ forloop.counter0 }})"></span>
+        <div class="dot {% if forloop.first %}active{% endif %}" onclick="currentSlide({{ forloop.counter0 }})"></div>
         {% endfor %}
     </div>
 </div>

@@ -29,4 +29,4 @@ def send_welcome(message):
         bot.send_message(message.chat.id, "Просто так меня запускать не надо. Зайди в настройки на сайте!")
 
 print("Бот запущен...")
-bot.polling()
+bot.polling(non_stop=True, timeout=90, long_polling_timeout=90)

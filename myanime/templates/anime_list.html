@@ -5,43 +5,62 @@
 {% block content %}
 
 <div class="content-wrapper">
-    {% include 'includes/hero_slider.html' %}
 
-    {% if user.is_authenticated and history %}
-    <div class="history-section">
-        <div class="history-header">
-            <h2><span class="icon">↺</span> Продолжить просмотр</h2>
-        </div>
+    {# --- SEARCH LOGIC: Hide Slider/History if searching --- #}
+    {% if not request.GET.q %}
 
-        <div class="history-shelf">
-            {% for item in history %}
-            <a href="{% url 'anime_detail' slug=item.episode.anime.code %}" class="history-card">
-                <div class="h-poster">
-                    {% if item.episode.anime.poster_path %}
-                    <img src="{{ item.episode.anime.poster_path }}" loading="lazy"
-                        alt="{{ item.episode.anime.name_ru }}">
-                    {% else %}
-                    <div class="h-no-poster"></div>
-                    {% endif %}
-                    <div class="h-overlay">
-                        <svg viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M8 5v14l11-7z" />
-                        </svg>
-                    </div>
-                    {% if item.episode %}
-                    <div class="h-badge">Серия {{ item.episode.ordinal }}</div>
-                    {% endif %}
+        {% include 'includes/hero_slider.html' %}
+
+        {% if user.is_authenticated and history %}
+        <div class="section-container history-section">
+            <div class="section-header">
+                <div class="section-title-wrapper">
+                    <svg class="section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+                    <h2>Продолжить просмотр</h2>
                 </div>
-                <div class="h-title">{{ item.episode.anime.name_ru }}</div>
-            </a>
-            {% endfor %}
+            </div>
+
+            <div class="history-shelf">
+                {% for item in history %}
+                <a href="{% url 'anime_detail' slug=item.episode.anime.code %}" class="history-card">
+                    <div class="h-poster">
+                        {% if item.episode.anime.poster_path %}
+                        <img src="{{ item.episode.anime.poster_path }}" loading="lazy" alt="{{ item.episode.anime.name_ru }}">
+                        {% else %}
+                        <div class="h-no-poster"></div>
+                        {% endif %}
+                        <div class="h-overlay">
+                            <svg viewBox="0 0 24 24" fill="currentColor" class="play-svg-mini"><path d="M8 5v14l11-7z" /></svg>
+                        </div>
+                        {% if item.episode %}
+                        <div class="h-progress-bar"><div class="bar-fill" style="width: {{ item.progress_percent|default:'0' }}%"></div></div>
+                        <div class="h-badge">Эпизод {{ item.episode.ordinal }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="h-title">{{ item.episode.anime.name_ru }}</div>
+                </a>
+                {% endfor %}
+            </div>
         </div>
-    </div>
+        {% endif %}
+
     {% endif %}
 
+
     <div class="page-header">
-        <h1>🔥 Свежие обновления</h1>
-        <p>Последние добавленные релизы</p>
+        {% if request.GET.q %}
+            <h1>
+                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                Результаты поиска
+            </h1>
+            <p>По запросу «{{ request.GET.q }}» найдено:</p>
+        {% else %}
+            <h1>
+                <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+                Свежие обновления
+            </h1>
+            <p>Последние добавленные релизы на сайте</p>
+        {% endif %}
     </div>
 
     <div class="anime-grid">
@@ -49,30 +68,38 @@
         <a href="{% url 'anime_detail' slug=anime.code %}" class="anime-card">
             <div class="poster-wrapper loading">
                 {% if anime.poster_path %}
-                <img src="{{ anime.poster_path }}" width="455" height="650" alt="{{ anime.name_ru }}" loading="lazy"
-                    decoding="async" onload="this.parentElement.classList.remove('loading')">
+                <img src="{{ anime.poster_path }}" width="455" height="650" alt="{{ anime.name_ru }}" loading="lazy" decoding="async" onload="this.parentElement.classList.remove('loading')">
                 {% else %}
-                <div class="no-poster"><span>Нет фото</span></div>
+                <div class="no-poster">
+                    <svg width="40" height="40" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>
+                </div>
                 {% endif %}
-                <div class="card-overlay"><span class="play-icon">▶</span></div>
+                <div class="card-overlay">
+                    <div class="play-button"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg></div>
+                </div>
             </div>
             <div class="card-info">
                 <h3 class="card-title">{{ anime.name_ru }}</h3>
                 <div class="card-meta">
                     {% if anime.updated_at %}
-                    <span class="date-badge">{{ anime.updated_at|date:"d.m.Y" }}</span>
+                    <span class="meta-item">{{ anime.updated_at|date:"Y" }}</span>
+                    {% endif %}
+                    {% if anime.status %}
+                    <span class="meta-dot">•</span>
+                    <span class="meta-item">{{ anime.status }}</span>
                     {% endif %}
                 </div>
-                <p class="card-desc">{{ anime.description|striptags|truncatechars:70 }}</p>
             </div>
         </a>
         {% empty %}
         <div class="empty-state">
-            <div class="empty-icon">📂</div>
-            <h3>Тут пока пусто</h3>
-            <p>Кажется, база данных еще не заполнена.</p>
-            {% if user.is_staff %}
-            <a href="/admin/" class="btn-primary">Перейти в админку</a>
+            <div class="empty-icon-box">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+            </div>
+            <h3>Ничего не найдено</h3>
+            <p>Попробуйте изменить запрос.</p>
+            {% if request.GET.q %}
+                <a href="{% url 'home' %}" class="btn-primary">На главную</a>
             {% endif %}
         </div>
         {% endfor %}
@@ -82,15 +109,9 @@
     <div class="pagination-wrapper">
         <nav class="pagination">
             {% if page_obj.has_previous %}
-                <a href="?page={{ page_obj.previous_page_number }}" class="page-btn prev" aria-label="Назад">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                    <span>Назад</span>
-                </a>
+                <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.previous_page_number }}" class="page-btn prev"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></a>
             {% else %}
-                <span class="page-btn disabled">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-                    <span>Назад</span>
-                </span>
+                <span class="page-btn disabled"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></span>
             {% endif %}
 
             <div class="page-numbers">
@@ -98,737 +119,347 @@
                     {% if page_obj.number == i %}
                         <span class="page-num active">{{ i }}</span>
                     {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
-                        <a href="?page={{ i }}" class="page-num">{{ i }}</a>
+                        <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ i }}" class="page-num">{{ i }}</a>
                     {% endif %}
                 {% endfor %}
             </div>
 
             {% if page_obj.has_next %}
-                <a href="?page={{ page_obj.next_page_number }}" class="page-btn next" aria-label="Вперед">
-                    <span>Вперед</span>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                </a>
+                <a href="?{% if request.GET.q %}q={{ request.GET.q }}&{% endif %}page={{ page_obj.next_page_number }}" class="page-btn next"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></a>
             {% else %}
-                <span class="page-btn disabled">
-                    <span>Вперед</span>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
-                </span>
+                <span class="page-btn disabled"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>
             {% endif %}
         </nav>
     </div>
     {% endif %}
-
 </div>
 
 <style>
+
     .content-wrapper {
-        max-width: 1240px;
+        max-width: 1280px;
         margin: 0 auto;
-        padding: 40px 20px;
+        padding: 20px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
+    /* --- HERO SLIDER --- */
     .hero-container {
         position: relative;
         width: 100%;
-        height: 500px;
+        height: 480px;
         overflow: hidden;
-        margin-bottom: 60px;
-        border-radius: 24px;
-        box-shadow: 0 0 0 1px var(--border), 0 20px 40px -10px rgba(0, 0, 0, 0.6);
+        margin-bottom: 40px;
+        border-radius: 20px;
         background: #000;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
     .hero-slide {
         position: absolute;
         inset: 0;
         opacity: 0;
-        transition: opacity 1s cubic-bezier(0.4, 0, 0.2, 1);
-        display: flex;
-        align-items: center;
-        will-change: opacity;
-    }
-
-    .hero-slide.active {
-        opacity: 1;
+        visibility: hidden;
+        transition: opacity 0.5s ease, visibility 0.5s;
         z-index: 1;
     }
+    .hero-slide.active { opacity: 1; visibility: visible; z-index: 2; }
 
-    .hero-slide::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        z-index: 1;
-        background: radial-gradient(circle at 70% 50%, transparent 0%, var(--bg-body) 120%),
-            linear-gradient(to right, #000 0%, transparent 60%);
-    }
-
+    /* 1. Background */
     .hero-bg {
         position: absolute;
         inset: 0;
         background-size: cover;
-        background-position: center;
-        filter: blur(20px) brightness(0.5) saturate(1.2);
+        background-position: center 20%;
+        filter: blur(10px) brightness(0.5); /* Сильное размытие и затемнение */
         transform: scale(1.1);
-        z-index: 0;
-        will-change: transform;
-        transform: translateZ(0);
+        z-index: 1;
     }
 
+    /* 2. Gradient Overlay for Text Readability */
+    .hero-overlay-gradient {
+        position: absolute;
+        inset: 0;
+        /* Градиент слева направо: темный под текстом, прозрачный над фоном */
+        background: linear-gradient(90deg, #09090b 0%, rgba(9,9,11,0.85) 45%, rgba(9,9,11,0.2) 100%);
+        z-index: 2;
+    }
+
+    /* 3. Content Container */
     .hero-content {
         position: relative;
-        z-index: 2;
-        display: flex;
-        align-items: center;
-        gap: 50px;
+        z-index: 3;
+        height: 100%;
         max-width: 1200px;
         margin: 0 auto;
-        padding: 0 50px;
-        width: 100%;
+        display: flex;
+        align-items: center;
+        padding: 0 40px;
+        gap: 40px;
     }
 
-    .hero-poster img {
-        width: 240px;
+    /* Left: Poster */
+    .hero-poster-box {
+        flex-shrink: 0;
+        width: 260px;
+        height: 380px;
         border-radius: 12px;
-        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        transform: translateY(30px) scale(0.95);
+        overflow: hidden;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+        border: 1px solid rgba(255,255,255,0.1);
+        transform: translateY(20px);
         opacity: 0;
-        transition: 1s cubic-bezier(0.2, 0.8, 0.2, 1);
+        transition: 0.6s 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
     }
+    .poster-img { width: 100%; height: 100%; object-fit: cover; }
+    .hero-slide.active .hero-poster-box { transform: translateY(0); opacity: 1; }
 
-    .hero-slide.active .hero-poster img {
-        transform: translateY(0) scale(1);
-        opacity: 1;
-    }
-
-    .hero-info {
-        max-width: 600px;
+    /* Right: Info */
+    .hero-info-box {
+        flex: 1;
         color: #fff;
+        padding-right: 20px;
+        transform: translateY(20px);
+        opacity: 0;
+        transition: 0.6s 0.3s ease;
     }
+    .hero-slide.active .hero-info-box { transform: translateY(0); opacity: 1; }
 
     .hero-badge {
         display: inline-block;
-        background: rgba(255, 255, 255, 0.1);
-        backdrop-filter: blur(10px);
-        padding: 6px 14px;
-        border-radius: 8px;
-        font-size: 0.8rem;
-        font-weight: 600;
-        letter-spacing: 0.05em;
-        margin-bottom: 20px;
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: var(--primary);
+        background: var(--primary);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-weight: 700;
+        font-size: 0.85rem;
         text-transform: uppercase;
+        margin-bottom: 16px;
     }
 
     .hero-title {
-        font-size: 3.5rem;
+        font-size: 2.8rem;
         font-weight: 800;
-        margin: 0 0 20px 0;
-        line-height: 1.05;
-        letter-spacing: -0.03em;
-        /* Плотный кернинг делает текст дороже */
-        transform: translateY(30px);
-        opacity: 0;
-        transition: 0.8s 0.1s cubic-bezier(0.2, 0.8, 0.2, 1);
-    }
-
-    .hero-slide.active .hero-title {
-        transform: translateY(0);
-        opacity: 1;
+        line-height: 1.1;
+        margin: 0 0 16px 0;
+        text-shadow: 0 2px 10px rgba(0,0,0,0.5);
     }
 
     .hero-desc {
-        font-size: 1.05rem;
-        color: #d4d4d8;
+        font-size: 1.1rem;
         line-height: 1.6;
+        color: #d4d4d8;
         margin-bottom: 30px;
+        max-width: 600px;
         display: -webkit-box;
         -webkit-line-clamp: 3;
         -webkit-box-orient: vertical;
         overflow: hidden;
-        transform: translateY(30px);
-        opacity: 0;
-        transition: 0.8s 0.2s;
-    }
-
-    .hero-slide.active .hero-desc {
-        transform: translateY(0);
-        opacity: 1;
     }
 
     .btn-watch {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
+        gap: 10px;
         background: #fff;
         color: #000;
-        padding: 14px 36px;
-        border-radius: 12px;
+        padding: 12px 32px;
+        border-radius: 10px;
         font-weight: 700;
         text-decoration: none;
         font-size: 1rem;
-        transform: translateY(30px);
-        opacity: 0;
-
-        transition:
-            opacity 0.8s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-            transform 0.8s 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
-            background-color 0.2s,
-            box-shadow 0.2s,
-            color 0.2s;
+        transition: 0.2s;
     }
-
-    .hero-slide.active .btn-watch {
-        transform: translateY(0);
-        opacity: 1;
-    }
-
     .btn-watch:hover {
         background: var(--primary);
         color: #fff;
+        transform: scale(1.05);
         box-shadow: 0 0 20px var(--primary-glow);
-        transition: all 0.1s ease-out !important;
-        transform: scale(1.05) !important;
     }
-
-    .btn-watch:active {
-        transform: scale(0.96) !important;
-        box-shadow: 0 0 10px var(--primary-glow);
-    }
-
-    .hero-dots {
-        position: absolute;
-        bottom: 30px;
-        right: 50px;
-        display: flex;
-        gap: 12px;
-        z-index: 10;
-    }
-
-    .dot {
-        width: 8px;
-        height: 8px;
-        background: rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
-        cursor: pointer;
-        transition: 0.3s;
-    }
-
-    .dot.active {
-        background: #fff;
-        width: 24px;
-    }
-
-    .history-section {
-        margin-bottom: 60px;
-    }
-
-    .history-header h2 {
-        font-size: 1.25rem;
-        margin-bottom: 20px;
-        color: var(--text-main);
-        font-weight: 700;
-        letter-spacing: -0.02em;
-        display: flex;
-        align-items: center;
-        gap: 10px;
-    }
-
-    .history-shelf {
-        display: flex;
-        gap: 20px;
-        overflow-x: auto;
-        padding: 10px 5px 20px 5px;
-        scroll-behavior: smooth;
-    }
-
-    .history-card {
-        min-width: 160px;
-        width: 160px;
-        text-decoration: none;
-        position: relative;
-        transition: transform 0.3s ease;
-    }
-
-    .history-card:hover {
-        transform: translateY(-8px);
-    }
-
-    .h-poster {
-        width: 100%;
-        aspect-ratio: 2/3;
-        border-radius: 12px;
-        overflow: hidden;
-        position: relative;
-        margin-bottom: 12px;
-        box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        border: 1px solid var(--border);
-    }
-
-    .h-poster img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
-
-    .h-badge {
-        position: absolute;
-        bottom: 8px;
-        right: 8px;
-        background: rgba(0, 0, 0, 0.8);
-        backdrop-filter: blur(4px);
-        color: #fff;
-        font-size: 0.7rem;
-        padding: 4px 8px;
-        border-radius: 6px;
-        font-weight: 600;
-        border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    .h-title {
-        font-size: 0.9rem;
-        font-weight: 600;
-        color: var(--text-sec);
-        text-align: left;
-        transition: 0.2s;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    .history-card:hover .h-title {
-        color: var(--text-main);
-    }
-
-
-    .page-header {
-        text-align: left;
-        margin-bottom: 30px;
-        border-bottom: 1px solid var(--border);
-        padding-bottom: 20px;
-    }
-
-    .page-header h1 {
-        font-size: 2rem;
-        margin: 0 0 5px 0;
-        font-weight: 800;
-        letter-spacing: -0.03em;
-        color: var(--text-main);
-        background: none;
-        -webkit-text-fill-color: initial;
-    }
-
-    .page-header p {
-        color: var(--text-sec);
-        font-size: 0.95rem;
-    }
-
-    .anime-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-        gap: 30px 24px;
-        margin-bottom: 60px;
-    }
-
-    .anime-card {
-        background: transparent;
-        border-radius: 16px;
-        overflow: visible;
-        text-decoration: none;
-        color: inherit;
-        display: flex;
-        flex-direction: column;
-        border: none;
-        transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-        contain: content;
-        will-change: transform;
-    }
-
-    .poster-wrapper {
-        position: relative;
-        aspect-ratio: 455/650;
-        border-radius: 12px;
-        overflow: hidden;
-        background: #18181b;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
-        transition: box-shadow 0.3s ease;
-    }
-
-    .anime-card:hover {
-        transform: translateY(-8px);
-        z-index: 2;
-    }
-
-    .anime-card:hover .poster-wrapper {
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2),
-            0 20px 40px -10px rgba(0, 0, 0, 0.6);
-    }
-
-    .poster-wrapper img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        opacity: 0;
-        transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-        will-change: transform, opacity;
-        backface-visibility: hidden;
-        transform: translateZ(0);
-    }
-
-    .poster-wrapper:not(.loading) img {
-        opacity: 1;
-    }
-
-    .anime-card:hover .poster-wrapper img {
-        transform: scale(1.06);
-    }
-
-    .card-overlay {
-        position: absolute;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.3);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: 0.3s;
-    }
-
-    .anime-card:hover .card-overlay {
-        opacity: 1;
-    }
-
-    .play-icon {
-        width: 48px;
-        height: 48px;
-        border-radius: 50%;
-        background: rgba(255, 255, 255, 0.2);
-        backdrop-filter: blur(4px);
-        border: 1px solid rgba(255, 255, 255, 0.4);
-        color: #fff;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding-left: 4px;
-        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
-        transform: scale(0.8);
-        transition: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    .anime-card:hover .play-icon {
-        transform: scale(1);
-        background: var(--primary);
-        border-color: var(--primary);
-    }
-
-    .card-info {
-        padding: 12px 4px 0 4px;
-    }
-
-    .card-title {
-        font-size: 0.95rem;
-        line-height: 1.4;
-        font-weight: 600;
-        color: var(--text-main);
-        margin-bottom: 6px;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
-        overflow: hidden;
-        transition: color 0.2s;
-    }
-
-    .anime-card:hover .card-title {
-        color: var(--primary);
-    }
-
-    .card-meta {
-        display: flex;
-        gap: 8px;
-        font-size: 0.75rem;
-        color: var(--text-sec);
-    }
-
-    .card-desc {
-        display: none;
-    }
-
-    .date-badge {
-        color: var(--text-sec);
-        font-weight: 500;
-    }
-
-    .empty-state {
-        grid-column: 1/-1;
-        text-align: center;
-        padding: 80px 20px;
-        background: transparent;
-        border: 1px dashed var(--border);
-        border-radius: 20px;
-    }
-
-    .btn-primary {
-        display: inline-block;
-        background: var(--primary);
-        color: #fff;
-        padding: 12px 24px;
-        border-radius: 10px;
-        text-decoration: none;
-        font-weight: 600;
-        margin-top: 20px;
-        transition: 0.3s;
-        box-shadow: 0 4px 15px var(--primary-glow);
-    }
-
-    .btn-primary:hover {
-        box-shadow: 0 8px 25px var(--primary-glow);
-        transform: translateY(-2px);
-    }
-
-    .pagination-wrapper {
-        margin-top: 60px;
-        margin-bottom: 40px;
-        display: flex;
-        justify-content: center;
-    }
-
-    .pagination {
-        display: flex;
-        align-items: center;
-        gap: 15px;
-        background: var(--surface);
-        padding: 8px 12px;
-        border-radius: 16px;
-        border: 1px solid var(--border);
-        box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-    }
-
-    .page-btn {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 10px 20px;
-        border-radius: 12px;
-        text-decoration: none;
-        color: var(--text-main);
-        font-weight: 600;
-        font-size: 0.9rem;
-        transition: all 0.2s ease;
-        background: transparent;
-    }
-
-    .page-btn:not(.disabled):hover {
-        background: var(--surface-hover);
-        transform: translateY(-2px);
-    }
-
-    .page-btn.disabled {
-        opacity: 0.4;
-        cursor: not-allowed;
-        pointer-events: none;
-    }
-
-    .page-btn svg { width: 18px; height: 18px; }
 
     .page-numbers {
         display: flex;
         align-items: center;
-        gap: 5px;
-        padding: 0 10px;
-        border-left: 1px solid var(--border);
-        border-right: 1px solid var(--border);
+        gap: 5px; /* Расстояние между цифрами */
     }
-
-    .page-num {
-        width: 36px;
-        height: 36px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 10px;
-        text-decoration: none;
-        color: var(--text-sec);
-        font-weight: 600;
-        font-size: 0.9rem;
+    /* Navigation */
+    .hero-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        z-index: 10;
+        background: rgba(0,0,0,0.4);
+        border: 1px solid rgba(255,255,255,0.2);
+        color: #fff;
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
         transition: 0.2s;
     }
+    .hero-nav:hover { background: var(--primary); border-color: var(--primary); }
+    .hero-nav.prev { left: 20px; }
+    .hero-nav.next { right: 20px; }
 
-    .page-num:hover {
-        background: var(--surface-hover);
-        color: var(--text-main);
+    .hero-dots {
+        position: absolute; bottom: 25px; right: 40px; z-index: 10;
+        display: flex; gap: 8px;
+    }
+    .dot {
+        width: 8px; height: 8px; background: rgba(255,255,255,0.3);
+        border-radius: 50%; cursor: pointer; transition: 0.3s;
+    }
+    .dot.active { background: #fff; transform: scale(1.3); }
+
+    /* --- HISTORY, HEADER, GRID --- */
+    .history-section { margin-bottom: 50px; }
+    .section-header { margin-bottom: 20px; }
+    .section-title-wrapper { display: flex; align-items: center; gap: 10px; }
+    .section-icon { width: 24px; height: 24px; color: var(--primary); }
+    .section-header h2 { font-size: 1.4rem; font-weight: 700; color: var(--text-main); margin: 0; }
+
+    .history-shelf { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 15px; scrollbar-width: none; }
+    .history-shelf::-webkit-scrollbar { display: none; }
+    .history-card { flex: 0 0 160px; text-decoration: none; }
+    .h-poster { position: relative; aspect-ratio: 16/9; border-radius: 10px; overflow: hidden; margin-bottom: 8px; border: 1px solid var(--border); }
+    .h-poster img { width: 100%; height: 100%; object-fit: cover; transition: 0.3s; }
+    .history-card:hover .h-poster img { transform: scale(1.05); }
+    .h-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; }
+    .history-card:hover .h-overlay { opacity: 1; }
+    .play-svg-mini { width: 32px; height: 32px; color: #fff; }
+    .h-progress-bar { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.2); }
+    .bar-fill { height: 100%; background: var(--primary); }
+    .h-badge { position: absolute; top: 6px; right: 6px; background: rgba(0,0,0,0.7); color: #fff; font-size: 0.65rem; padding: 3px 6px; border-radius: 4px; font-weight: 600; }
+    .h-title { font-size: 0.9rem; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .page-header { margin-bottom: 25px; border-bottom: 1px solid var(--border); padding-bottom: 20px; }
+    .page-header h1 { font-size: 1.8rem; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 12px; margin: 0; }
+    .header-icon { width: 28px; height: 28px; color: var(--primary); }
+    .page-header p { color: var(--text-sec); margin-left: 40px; }
+
+    .anime-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 24px; margin-bottom: 60px; }
+    .anime-card { text-decoration: none; color: inherit; position: relative; transition: transform 0.2s; }
+    .anime-card:hover { transform: translateY(-5px); }
+    .poster-wrapper { aspect-ratio: 2/3; border-radius: var(--radius); overflow: hidden; position: relative; background: var(--surface); }
+    .poster-wrapper img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.4s ease; }
+    .anime-card:hover .poster-wrapper img { transform: scale(1.08); }
+    .card-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; opacity: 0; transition: 0.2s; }
+    .anime-card:hover .card-overlay { opacity: 1; }
+    .play-button { width: 44px; height: 44px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; transform: scale(0.8); transition: 0.2s; }
+    .anime-card:hover .play-button { transform: scale(1); }
+    .card-title { font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin-top: 10px; margin-bottom: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; transition: color 0.2s; }
+    .anime-card:hover .card-title { color: var(--primary); }
+    .card-meta { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--text-sec); }
+
+    .pagination-wrapper { display: flex; justify-content: center; margin-top: 20px; }
+    .pagination { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 8px; border-radius: 12px; border: 1px solid var(--border); }
+    .page-btn, .page-num { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 8px; color: var(--text-main); text-decoration: none; transition: 0.2s; font-weight: 600; }
+    .page-btn:hover, .page-num:hover { background: var(--surface-hover); }
+    .page-num.active { background: var(--primary); color: #fff; }
+    .page-btn.disabled { opacity: 0.3; pointer-events: none; }
+
+
+    /* ========================================= */
+    /* === MEDIA QUERIES (ADAPTATION) === */
+    /* ========================================= */
+
+    /* LAPTOPS (1024px to 1400px) - Scaling down to fit screen */
+    @media (max-width: 1400px) {
+        .hero-container { height: 420px; }
+        .hero-poster-box { width: 220px; height: 320px; } /* Smaller poster */
+        .hero-title { font-size: 2.2rem; margin-bottom: 10px; }
+        .hero-desc { font-size: 1rem; -webkit-line-clamp: 3; }
+        .hero-content { gap: 30px; padding: 0 30px; }
     }
 
-    .page-num.active {
-        background: var(--primary);
-        color: #fff;
-        box-shadow: 0 4px 12px var(--primary-glow);
+    /* TABLETS (768px - 1024px) */
+    @media (max-width: 1024px) {
+        .hero-container { height: 380px; }
+        .hero-poster-box { display: none; } /* Hide poster to save space */
+        .hero-overlay-gradient { background: linear-gradient(0deg, #09090b 0%, rgba(9,9,11,0.6) 60%, transparent 100%); }
+        .hero-content { justify-content: flex-start; align-items: flex-end; padding-bottom: 50px; }
+        .hero-info-box { flex: none; width: 100%; text-align: left; }
     }
 
+    /* PHONES (Max 600px) */
     @media (max-width: 600px) {
-        .pagination { gap: 5px; padding: 5px; width: 100%; justify-content: space-between; }
-        .page-btn span { display: none; } /* Скрываем текст "Назад/Вперед" */
-        .page-numbers { border: none; padding: 0; }
-        .page-num { width: 32px; height: 32px; font-size: 0.85rem; }
-    }
+        .content-wrapper { padding: 12px; }
+        .hero-container { height: 420px; border-radius: 16px; margin-bottom: 25px; }
+        .hero-nav { display: none; }
+        .hero-dots { right: 50%; transform: translateX(50%); bottom: 20px; }
+        .hero-title { font-size: 1.8rem; }
+        .hero-desc { -webkit-line-clamp: 3; display: block; }
+        .btn-watch { width: 100%; justify-content: center; }
 
-    .page-link {
-        width: 40px;
-        height: 40px;
-        background: transparent;
-        border: 1px solid var(--border);
-        color: var(--text-main);
-        border-radius: 10px;
-        font-weight: 600;
-    }
-
-    .page-link:hover {
-        border-color: var(--primary);
-        background: var(--surface-hover);
-        color: var(--primary);
-    }
-
-    @media (max-width: 768px) {
-        .hero-container {
-            height: 75vh;
-            border-radius: 0;
-            width: 100vw;
-            margin-left: -20px;
-        }
-
-        .hero-content {
-            align-items: flex-start;
-            justify-content: flex-end;
-            padding-bottom: 80px;
-        }
-
-        .hero-poster {
-            display: none;
-        }
-
-        .hero-title {
-            font-size: 2.2rem;
-        }
-
-        .hero-dots {
-            right: auto;
-            left: 50%;
-            transform: translateX(-50%);
-            bottom: 20px;
-        }
-
-        .anime-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 15px;
-        }
+        /* Grid 2 columns */
+        .anime-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+        .play-button { display: none; }
+        .card-overlay { display: none; }
+        .card-title { font-size: 0.85rem; }
+        .history-card { flex: 0 0 140px; }
     }
 </style>
 
-
 <script>
-    let slideIndex = 0;
-    const slides = document.querySelectorAll('.hero-slide');
-    const dots = document.querySelectorAll('.dot');
-    let slideTimer;
-    const sliderContainer = document.querySelector('.hero-container');
-    let isSliderVisible = true; // Виден ли слайдер сейчас?
+    document.addEventListener('DOMContentLoaded', () => {
+        const slides = document.querySelectorAll('.hero-slide');
+        if(slides.length === 0) return;
 
-    function showSlide(n) {
-        if (slides.length === 0) return;
+        let slideIndex = 0;
+        let timer;
 
-        if (n >= slides.length) slideIndex = 0;
-        else if (n < 0) slideIndex = slides.length - 1;
-        else slideIndex = n;
-
-        slides.forEach(s => s.classList.remove('active'));
-        dots.forEach(d => d.classList.remove('active'));
-
-        slides[slideIndex].classList.add('active');
-        if (dots[slideIndex]) dots[slideIndex].classList.add('active');
-    }
-
-    function moveSlide(n) {
-        showSlide(slideIndex + n);
-        resetTimer();
-    }
-
-    function currentSlide(n) {
-        showSlide(n);
-        resetTimer();
-    }
-
-    function startTimer() {
-        if (!slideTimer && isSliderVisible && !document.hidden) {
-            slideTimer = setInterval(() => moveSlide(1), 5000);
-        }
-    }
-
-    function stopTimer() {
-        if (slideTimer) {
-            clearInterval(slideTimer);
-            slideTimer = null;
-        }
-    }
-
-    function resetTimer() {
-        stopTimer();
-        startTimer();
-    }
-
-    if (window.IntersectionObserver && sliderContainer) {
-        const observer = new IntersectionObserver((entries) => {
-            if (entries[0].isIntersecting) {
-                isSliderVisible = true;
-                startTimer();
-            } else {
-                isSliderVisible = false;
-                stopTimer();
+        // Dots creation
+        let dotsContainer = document.querySelector('.hero-dots');
+        if (!dotsContainer) {
+            const container = document.querySelector('.hero-container');
+            if(container) {
+                dotsContainer = document.createElement('div');
+                dotsContainer.className = 'hero-dots';
+                container.appendChild(dotsContainer);
+                slides.forEach((_, i) => {
+                    const dot = document.createElement('div');
+                    dot.className = i === 0 ? 'dot active' : 'dot';
+                    dot.onclick = () => window.currentSlide(i);
+                    dotsContainer.appendChild(dot);
+                });
             }
-        });
-        observer.observe(sliderContainer);
-    }
+        }
+        const dots = document.querySelectorAll('.dot');
 
-    let scrollTimeout;
-    window.addEventListener('scroll', () => {
-        stopTimer(); // Пауза пока крутим
+        function showSlide(n) {
+            slideIndex = (n + slides.length) % slides.length;
+            slides.forEach(s => s.classList.remove('active'));
+            dots.forEach(d => d.classList.remove('active'));
 
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-            if (isSliderVisible) {
-                startTimer();
-            }
-        }, 200);
-    }, { passive: true });
+            slides[slideIndex].classList.add('active');
+            if(dots[slideIndex]) dots[slideIndex].classList.add('active');
+            resetTimer();
+        }
 
+        // Make functions global for HTML onclick attributes
+        window.currentSlide = function(n) { showSlide(n); }
+        window.moveSlide = function(n) { showSlide(slideIndex + n); }
 
-    let touchStartX = 0;
-    let touchEndX = 0;
+        function nextSlide() { showSlide(slideIndex + 1); }
 
-    if (sliderContainer) {
-        sliderContainer.addEventListener('touchstart', e => {
-            touchStartX = e.changedTouches[0].screenX;
-            stopTimer();
-        }, { passive: true });
+        function resetTimer() {
+            clearInterval(timer);
+            timer = setInterval(nextSlide, 5000);
+        }
 
-        sliderContainer.addEventListener('touchend', e => {
-            touchEndX = e.changedTouches[0].screenX;
-            handleSwipe();
-            startTimer();
-        }, { passive: true });
-    }
+        // Swipe support
+        let touchStartX = 0;
+        const container = document.querySelector('.hero-container');
+        if(container){
+            container.addEventListener('touchstart', e => touchStartX = e.changedTouches[0].screenX, {passive: true});
+            container.addEventListener('touchend', e => {
+                if (touchStartX - e.changedTouches[0].screenX > 50) nextSlide();
+                if (e.changedTouches[0].screenX - touchStartX > 50) showSlide(slideIndex - 1);
+            }, {passive: true});
+        }
 
-    function handleSwipe() {
-        if (touchStartX - touchEndX > 50) moveSlide(1);
-        if (touchEndX - touchStartX > 50) moveSlide(-1);
-    }
-
-    document.addEventListener("visibilitychange", () => {
-        if (document.hidden) stopTimer();
-        else if (isSliderVisible) startTimer();
+        resetTimer();
     });
-
-    if (slides.length > 0) {
-        startTimer();
-    }
 </script>
 {% endblock %}
