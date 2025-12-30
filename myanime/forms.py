@@ -62,6 +62,6 @@ class ProfileUpdateForm(forms.ModelForm):
     class Meta:
         model = Profile
         fields = ['avatar', 'bio', 'auto_next', 'auto_skip_intro',
-                  'backdrop_blur', 'default_quality', 'dark_theme']
+                  'backdrop_blur', 'default_quality', 'dark_theme', 'accent_color']
         # Исключаем telegram_id, так как он обновляется через бота,
         # либо оставляем, если хотите править вручную.

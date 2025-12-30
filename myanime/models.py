@@ -6,6 +6,13 @@ import uuid
 
 
 # Create your models here.
+
+class Franchise(models.Model):
+    name = models.CharField("Название франшизы", max_length=255)
+
+    def __str__(self):
+        return self.name
+
 class Genre(models.Model):
     name = models.CharField(max_length=255, unique=True, verbose_name="Жанр")
 
@@ -33,6 +40,8 @@ class AnimeTitle(models.Model):
         max_length=500, verbose_name="Ссылка на плеер", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    franchise = models.ForeignKey(Franchise, on_delete=models.SET_NULL, null=True, blank=True, related_name='releases', verbose_name="Франшиза")
+    franchise_order = models.IntegerField("Порядок просмотра", default=0)
 
     def __str__(self):
         return self.name_ru
@@ -89,7 +98,6 @@ class UserAnimeList(models.Model):
     def __str__(self):
         return f"{self.user.username} - {self.anime.name_ru} ({self.status})"
 
-
 class EpisodeHistory(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name='history')
@@ -108,6 +116,10 @@ class EpisodeHistory(models.Model):
         return f"{self.user} -> {self.episode} ({self.timestamp}s)"
 
 class Profile(models.Model):
+    ACCENT_CHOICES = [
+        ('purple', 'Cyber Purple'),
+        ('orange', 'Neon Lava'),
+    ]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     telegram_id = models.CharField(max_length=50, blank=True, null=True, verbose_name="Telegram Chat ID")
     tg_auth_token = models.CharField(max_length=100, blank=True, null=True)
@@ -123,6 +135,7 @@ class Profile(models.Model):
         verbose_name="Качество по умолчанию"
     )
     dark_theme = models.BooleanField(default=True, verbose_name="Темная тема")
+    accent_color = models.CharField(max_length=10, choices=ACCENT_CHOICES, default='purple')
     backdrop_blur = models.BooleanField(default=True, verbose_name="Размытие фона")
 
     def __str__(self):

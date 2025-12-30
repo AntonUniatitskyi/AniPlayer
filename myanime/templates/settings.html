@@ -25,6 +25,7 @@
 
     <form method="post" enctype="multipart/form-data" class="settings-content">
         {% csrf_token %}
+        <input type="hidden" name="accent_color" id="accentInput" value="{{ user.profile.accent_color|default:'purple' }}">
 
         <div id="profile" class="tab-pane active">
             <h2 class="pane-title">Мой профиль</h2>
@@ -109,6 +110,27 @@
         <div id="interface" class="tab-pane">
             <h2 class="pane-title">Интерфейс</h2>
             <div class="settings-list">
+
+                <div class="setting-item">
+                    <div class="st-info">
+                        <h3>Цветовая схема</h3>
+                        <p>Выберите акцентный цвет приложения.</p>
+                    </div>
+                    <div class="color-picker">
+                        <button type="button"
+                                class="color-swatch purple"
+                                onclick="changeAccent('purple')"
+                                title="Cyber Purple">
+                        </button>
+
+                        <button type="button"
+                                class="color-swatch orange"
+                                onclick="changeAccent('orange')"
+                                title="Neon Lava">
+                        </button>
+                    </div>
+                </div>
+
                 <div class="setting-item">
                     <div class="st-info">
                         <h3>Размытие фона (Backdrop)</h3>
@@ -170,6 +192,39 @@
 </div>
 
 <style>
+
+    /* === ЦВЕТОВЫЕ СВОТЧИ === */
+    .color-picker {
+        display: flex;
+        gap: 12px;
+    }
+
+    .color-swatch {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.1); /* Легкая рамка */
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        padding: 0;
+    }
+
+    /* Цвета */
+    .color-swatch.purple { background: #8b5cf6; } /* Твой дефолтный */
+    .color-swatch.orange { background: #ff3d00; } /* Твой новый оранжевый */
+
+    /* Ховер эффект */
+    .color-swatch:hover {
+        transform: scale(1.1);
+    }
+
+    /* Активное состояние (выбранный цвет) */
+    .color-swatch.active {
+        border-color: var(--bg-body); /* Прозрачное кольцо */
+        box-shadow: 0 0 0 2px var(--text-main); /* Внешнее кольцо цвета текста */
+        transform: scale(1.1);
+    }
     /* === ОБЩИЕ ПЕРЕМЕННЫЕ И БАЗОВЫЕ СТИЛИ (DESKTOP) === */
     .tg-btn {
         background: #229ED9;
@@ -415,5 +470,45 @@
             reader.readAsDataURL(input.files[0]);
         }
     }
+</script>
+
+<script>
+    window.changeAccent = function(color) {
+        // 1. Визуальный эффект (сразу меняем атрибут)
+        if (color === 'orange') {
+            document.body.setAttribute('data-accent', 'orange');
+        } else {
+            document.body.removeAttribute('data-accent');
+        }
+
+        // 2. 🔥 Записываем значение в скрытый инпут для отправки на сервер
+        const input = document.getElementById('accentInput');
+        if (input) {
+            input.value = color;
+        }
+
+        // 3. Обновляем активный кружочек
+        updateActiveSwatch(color);
+
+        // 4. (Опционально) Обновляем localStorage для синхронизации,
+        // если пользователь выйдет из аккаунта
+        localStorage.setItem('accent', color);
+    }
+
+    function updateActiveSwatch(forceColor = null) {
+        // Берем цвет либо из аргумента, либо из инпута (из базы), либо дефолт
+        const inputVal = document.getElementById('accentInput')?.value;
+        const currentColor = forceColor || inputVal || 'purple';
+
+        document.querySelectorAll('.color-swatch').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.classList.contains(currentColor)) {
+                btn.classList.add('active');
+            }
+        });
+    }
+
+    // Запуск при старте
+    updateActiveSwatch();
 </script>
 {% endblock %}

@@ -52,6 +52,16 @@
             --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             --glass-bg: rgba(255, 255, 255, 0.95);
         }
+        body[data-accent="orange"] {
+            --primary: #ff3d00;
+            --primary-glow: rgba(255, 61, 0, 0.5);
+        }
+
+        /* Корректировка оранжевого для светлой темы (чуть темнее для контраста) */
+        body.light-theme[data-accent="orange"] {
+            --primary: #ea580c;
+            --primary-glow: rgba(234, 88, 12, 0.3);
+        }
 
         *, *::before, *::after {
             box-sizing: border-box;
@@ -400,7 +410,7 @@
     </style>
 </head>
 
-<body>
+<body {% if user.is_authenticated and user.profile.accent_color == 'orange' %} data-accent="orange" {% endif %}>
 
     <nav class="mobile-bottom-nav">
         <a href="{% url 'home' %}" class="nav-item {% if request.path == '/' %}active{% endif %}">
@@ -553,6 +563,16 @@
             if (savedTheme === 'light') {
                 body.classList.add('light-theme');
                 updatePwaThemeColor(true);
+            }
+        }
+
+        function initAccent() {
+            const savedAccent = localStorage.getItem('accent');
+            // Если в памяти 'orange', ставим атрибут. Если нет — убираем (вернется фиолетовый)
+            if (savedAccent === 'orange') {
+                document.body.setAttribute('data-accent', 'orange');
+            } else {
+                document.body.removeAttribute('data-accent');
             }
         }
 
@@ -714,6 +734,7 @@
         // Запуск при самой первой загрузке сайта
         document.addEventListener('DOMContentLoaded', () => {
             initTheme();
+            initAccent();
             initGlobalScripts();
 
             // Service Worker
