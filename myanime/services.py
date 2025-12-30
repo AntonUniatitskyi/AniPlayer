@@ -1,14 +1,14 @@
 import asyncio
 import time
-
+from django.utils import timezone
 import aiohttp
 import requests
 from asgiref.sync import sync_to_async
 from django.db import transaction
 
-from .models import AnimeTitle, Episode, Genre
+from .models import AnimeTitle, Episode, Genre, Franchise
 
-CONCURENT_REQUESTS = 25
+CONCURENT_REQUESTS = 20
 BASE_SITE_URL = "https://aniliberty.top"
 
 
@@ -25,10 +25,18 @@ async def fetch_json(session, url, params=None):
 
 async def fetch_detail_data(sem, session, ani_id):
     url = f"{BASE_SITE_URL}/api/v1/anime/releases/{ani_id}"
+    franchise_url = f"{BASE_SITE_URL}/api/v1/anime/franchises/release/{ani_id}"
     async with sem:
-        data = await fetch_json(session, url)
+        release_data = await fetch_json(session, url)
+        if not release_data:
+            return None
         await asyncio.sleep(0.05)
-        return data
+        franchise_data = await fetch_json(session, franchise_url)
+        if franchise_data:
+            # Если это словарь с ключом data (стандарт JSON API), достаем его, иначе берем как есть
+            clean_fr_data = franchise_data.get('data') if isinstance(franchise_data, dict) and 'data' in franchise_data else franchise_data
+            release_data['fetched_franchise'] = clean_fr_data
+        return release_data
 
 
 def save_batch_to_db(batch_data, stats):
@@ -55,6 +63,10 @@ def save_batch_to_db(batch_data, stats):
                         'preview') or poster_obj.get('thumbnail')
                 if poster_path and poster_path.startswith('/'):
                     poster_path = BASE_SITE_URL + poster_path
+                api_updated = rel_data.get('updated')
+                if not api_updated:
+                    # Если API вернул null, берем текущее время
+                    api_updated = timezone.now()
                 anime_obj, created = AnimeTitle.objects.update_or_create(
                     anilibria_id=ani_id,
                     defaults={
@@ -63,7 +75,8 @@ def save_batch_to_db(batch_data, stats):
                         'name_en': rel_data.get('name', {}).get('english'),
                         'description': rel_data.get('description', '') or '',
                         'poster_path': poster_path or '',
-                        'player_url': ''
+                        'player_url': '',
+                        'updated_at': api_updated
                     }
                 )
                 if created:
@@ -71,16 +84,45 @@ def save_batch_to_db(batch_data, stats):
                 else:
                     stats['anime_updated'] += 1
 
+                fetched_fr_data = rel_json.get('fetched_franchise') # Берем из корня JSON, так как мы туда положили
+
+                # API может вернуть список франшиз или одну. Приводим к списку.
+                if fetched_fr_data:
+                    fr_list = fetched_fr_data if isinstance(fetched_fr_data, list) else [fetched_fr_data]
+
+                    for fr_item in fr_list:
+                        # fr_item - это объект франшизы
+                        fr_name = fr_item.get('name')
+                        fr_id = fr_item.get('id')
+
+                        if fr_name:
+                            franchise_obj, _ = Franchise.objects.get_or_create(name=fr_name)
+                            anime_obj.franchise = franchise_obj
+                            releases_in_fr = fr_item.get('franchise_releases', [])
+                            found_order = False
+                            for rel in releases_in_fr:
+                                r_id = rel.get('release_id')
+
+                                if str(r_id) == str(ani_id):
+                                    sort_order = rel.get('sort_order')
+
+                                    if sort_order is not None:
+                                        anime_obj.franchise_order = int(sort_order)
+                                        found_order = True
+                                    break
+                            if not found_order:
+                                anime_obj.franchise_order = 0
+
+                            anime_obj.save()
+                            break
+
                 genres_list = rel_data.get('genres', [])
                 if genres_list:
                     genre_objects = []
                     for genre_item in genres_list:
-                        # genre_item - это словарь {"id": 21, "name": "Комедия"...}
-                        # Нам нужно только "name"
                         if isinstance(genre_item, dict):
                             g_name = genre_item.get('name')
                         else:
-                            # На случай, если вдруг придет строка (защита)
                             g_name = str(genre_item)
 
                         if g_name:

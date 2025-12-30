@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import AnimeTitle, UserAnimeList, Profile
+from .models import AnimeTitle, UserAnimeList, Profile, Franchise
 
 # Register your models here.
 @admin.register(AnimeTitle)
@@ -17,3 +17,8 @@ class UserAnimeListAdmin(admin.ModelAdmin):
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'avatar', 'bio')
     search_fields = ('user__username', 'bio')
+
+@admin.register(Franchise)
+class FranchiseAdmin(admin.ModelAdmin):
+    list_display = ('name',)
+    search_fields = ('name',)

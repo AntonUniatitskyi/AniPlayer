@@ -160,6 +160,11 @@ class AnimeTitleDetailView(DetailView):
         anime = self.object
         # Берем жанры текущего аниме
         anime_genres = anime.genres.all()
+        franchise_releases = []
+        if anime.franchise:
+            # Берем все тайтлы этой франшизы, сортируем по полю franchise_order или году
+            franchise_releases = anime.franchise.releases.all().order_by('franchise_order', 'updated_at')
+
 
         # Ищем совпадения
         similar_anime = AnimeTitle.objects.filter(genres__in=anime_genres)\
@@ -168,6 +173,7 @@ class AnimeTitleDetailView(DetailView):
             .order_by('-same_genres', '-updated_at')\
             .distinct()[:6]
 
+        context['franchise_releases'] = franchise_releases
         context['similar_anime'] = similar_anime
         context['last_episode_id'] = None
         context['last_timestamp'] = 0

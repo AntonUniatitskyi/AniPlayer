@@ -3,6 +3,7 @@ from django.db import models
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import uuid
+from django.utils import timezone
 
 
 # Create your models here.
@@ -39,7 +40,7 @@ class AnimeTitle(models.Model):
     player_url = models.CharField(
         max_length=500, verbose_name="Ссылка на плеер", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(default=timezone.now, verbose_name="Дата обновления")
     franchise = models.ForeignKey(Franchise, on_delete=models.SET_NULL, null=True, blank=True, related_name='releases', verbose_name="Франшиза")
     franchise_order = models.IntegerField("Порядок просмотра", default=0)
 

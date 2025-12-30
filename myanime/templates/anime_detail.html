@@ -94,6 +94,40 @@
             </div>
         </div>
 
+        {% if franchise_releases %}
+        <div class="franchise-section">
+            <h3 class="section-title">Порядок просмотра</h3>
+            <div class="franchise-list-container">
+                <div class="franchise-track">
+                    {% for item in franchise_releases %}
+                        <a href="{% url 'anime_detail' item.code %}"
+                           class="fr-card {% if item.id == anime.id %}current{% endif %}">
+
+                            <div class="fr-poster">
+                                <img src="{{ item.poster_path }}" alt="{{ item.name_ru }}" loading="lazy">
+
+                                <div class="fr-order">#{{ forloop.counter }}</div>
+
+                                {% if item.id == anime.id %}
+                                    <div class="fr-overlay active">
+                                        <span>Сейчас</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="fr-meta">
+                                <div class="fr-year">
+                                    {% if item.updated_at %}{{ item.updated_at|date:"Y" }}{% endif %}
+                                </div>
+                                <div class="fr-name">{{ item.name_ru }}</div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% if anime.episodes.exists %}
         <div class="player-section" id="watch">
             <div class="cinema-container">
@@ -647,6 +681,118 @@
 
     .plyr--video { --plyr-color-main: var(--primary); }
 
+    /* === СТИЛИ ФРАНШИЗЫ === */
+    .franchise-section {
+        margin-bottom: 40px;
+        margin-top: -20px; /* Чуть подтянем к герою */
+    }
+
+    .franchise-list-container {
+        position: relative;
+        width: 100%;
+    }
+
+    /* Горизонтальный скролл */
+    .franchise-track {
+        display: flex;
+        gap: 15px;
+        overflow-x: auto;
+        padding-bottom: 15px;
+        padding-left: 2px; /* Чтобы тень первого элемента не обрезалась */
+        scrollbar-width: thin;
+        scrollbar-color: var(--border) transparent;
+        scroll-behavior: smooth;
+    }
+
+    /* Скроллбар для Webkit */
+    .franchise-track::-webkit-scrollbar { height: 6px; }
+    .franchise-track::-webkit-scrollbar-track { background: transparent; }
+    .franchise-track::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    .franchise-track::-webkit-scrollbar-thumb:hover { background: var(--text-sec); }
+
+    /* Карточка */
+    .fr-card {
+        flex-shrink: 0;
+        width: 140px;
+        text-decoration: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: transform 0.2s ease;
+    }
+
+    .fr-card:hover {
+        transform: translateY(-4px);
+    }
+
+    /* Постер */
+    .fr-poster {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 2/3;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    .fr-poster img {
+        width: 100%; height: 100%; object-fit: cover;
+        transition: 0.3s;
+    }
+
+    .fr-card:hover .fr-poster img { filter: brightness(1.1); }
+
+    /* Бейдж с номером (1, 2, 3...) */
+    .fr-order {
+        position: absolute; top: 6px; left: 6px;
+        background: rgba(0,0,0,0.7);
+        backdrop-filter: blur(4px);
+        color: #fff; font-size: 0.7rem; font-weight: 700;
+        width: 24px; height: 24px;
+        display: flex; align-items: center; justify-content: center;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Оверлей "Сейчас" */
+    .fr-overlay.active {
+        position: absolute; inset: 0;
+        background: rgba(var(--primary-rgb), 0.6); /* Полупрозрачный primary */
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px);
+    }
+    /* Если переменная primary-rgb не задана, фолбэк: */
+    .fr-overlay.active { background: rgba(139, 92, 246, 0.4); border: 2px solid var(--primary); }
+
+    .fr-overlay span {
+        color: #fff; font-weight: 700; font-size: 0.8rem;
+        text-transform: uppercase; letter-spacing: 0.05em;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    }
+
+    /* Текстовая инфа */
+    .fr-meta { display: flex; flex-direction: column; }
+
+    .fr-year { font-size: 0.75rem; color: var(--text-sec); margin-bottom: 2px; }
+
+    .fr-name {
+        font-size: 0.85rem; font-weight: 600; color: var(--text-main);
+        line-height: 1.3;
+        display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+        overflow: hidden;
+        transition: color 0.2s;
+    }
+
+    /* Подсветка активного элемента */
+    .fr-card.current .fr-name { color: var(--primary); }
+    .fr-card:hover .fr-name { color: var(--primary); }
+
+    /* Адаптив для мобильных */
+    @media (max-width: 768px) {
+        .franchise-card { width: 110px; }
+        .fr-order { width: 20px; height: 20px; font-size: 0.65rem; }
+    }
     </style>
 
     <script>
@@ -671,6 +817,16 @@
                     defaultQuality: 1080,
                 {% endif %}
             };
+
+            const activeFranchiseCard = document.querySelector('.fr-card.current');
+            const franchiseTrack = document.querySelector('.franchise-track');
+
+            if (activeFranchiseCard && franchiseTrack) {
+                // Вычисляем позицию, чтобы активный элемент был по центру (или хотя бы виден)
+                const scrollLeft = activeFranchiseCard.offsetLeft - (franchiseTrack.clientWidth / 2) + (activeFranchiseCard.clientWidth / 2);
+                // Плавный скролл
+                franchiseTrack.scrollTo({ left: scrollLeft, behavior: 'smooth' });
+            }
 
             // Глобальные переменные для плеера
             let hls = null;
