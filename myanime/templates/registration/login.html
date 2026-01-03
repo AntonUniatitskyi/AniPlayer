@@ -14,7 +14,7 @@
                 <p>Мы скучали. Введите данные для входа.</p>
             </div>
 
-            <form method="post" class="auth-form">
+            <form method="post" class="auth-form" data-no-swup>
                 {% csrf_token %}
 
                 {% if form.non_field_errors %}

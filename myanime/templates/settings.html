@@ -23,7 +23,7 @@
         </nav>
     </aside>
 
-    <form method="post" enctype="multipart/form-data" class="settings-content">
+    <form method="post" enctype="multipart/form-data" class="settings-content" data-no-swup>
         {% csrf_token %}
         <input type="hidden" name="accent_color" id="accentInput" value="{{ user.profile.accent_color|default:'purple' }}">
 

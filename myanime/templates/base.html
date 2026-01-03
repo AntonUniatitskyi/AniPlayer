@@ -162,6 +162,7 @@
 
         .theme-toggle, .profile-btn-icon {
             width: 40px; height: 40px; background: var(--surface);
+            margin-right: 5px;
             border: 1px solid var(--border); border-radius: 10px;
             display: flex; align-items: center; justify-content: center;
             color: var(--text-sec); cursor: pointer; transition: 0.2s;
@@ -175,6 +176,7 @@
 
         .auth-link-btn {
             color: var(--text-sec); text-decoration: none; font-size: 0.9rem;
+            margin-right: 10px;
             font-weight: 600; cursor: pointer; background: none; border: none;
             padding: 0; transition: 0.2s;
         }
@@ -513,7 +515,7 @@
                     {{ user.username|make_list|first|upper }}
                 </a>
                 <div class="desktop-auth">
-                    <form action="{% url 'logout' %}" method="post" style="display:inline;">
+                    <form action="{% url 'logout' %}" method="post" style="display:inline;" data-no-swup>
                         {% csrf_token %}
                         <button type="submit" class="auth-link-btn" style="color: #ff6b6b;">Выйти</button>
                     </form>
@@ -523,13 +525,6 @@
                     <a href="{% url 'login' %}" class="auth-link-btn">Войти</a>
                     <a href="{% url 'register' %}" class="auth-link-btn" style="color: var(--primary);">Регистрация</a>
                 </div>
-                <a href="{% url 'login' %}" class="profile-btn-icon" title="Войти">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                        <polyline points="10 17 15 12 10 7"></polyline>
-                        <line x1="15" y1="12" x2="3" y2="12"></line>
-                    </svg>
-                </a>
                 {% endif %}
             </div>
         </div>
@@ -547,8 +542,7 @@
 
     <script src="https://unpkg.com/swup@4"></script>
     <script src="https://unpkg.com/@swup/scripts-plugin@2"></script>
-    <script src="https://unpkg.com/swup@4"></script>
-    <script src="https://unpkg.com/@swup/scripts-plugin@2"></script>
+    <script src="https://unpkg.com/@swup/forms-plugin@3"></script>
 
     <script>
         // --- Глобальные функции (Тосты, Поиск, Тема) ---
@@ -629,10 +623,16 @@
             animationSelector: '[class*="transition-fade"]',
 
             // 🔥 ВАЖНО: Подключаем плагин для скриптов
-            plugins: [new SwupScriptsPlugin({
-                head: true, // Перезагружать скрипты в <head>
-                body: true  // Перезагружать скрипты в <body> (это то, что вам нужно)
-            })]
+            plugins: [
+                new SwupScriptsPlugin({
+                    head: true, // Перезагружать скрипты в <head>
+                    body: true  // Перезагружать скрипты в <body> (это то, что вам нужно)
+                }),
+                new SwupFormsPlugin({
+                    // Захватываем ВСЕ формы, КРОМЕ тех, у которых есть атрибут data-no-swup
+                    formSelector: 'form:not([data-no-swup])'
+                })
+            ]
         });
 
         // Функция, которая запускается КАЖДЫЙ РАЗ при заходе на страницу

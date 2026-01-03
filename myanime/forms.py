@@ -52,7 +52,7 @@ class TelegramPasswordResetForm(PasswordResetForm):
             print(f"Ошибка отправки в Telegram: {e}")
 
 class UserUpdateForm(forms.ModelForm):
-    email = forms.EmailField()
+    email = forms.EmailField(required=False)
 
     class Meta:
         model = User

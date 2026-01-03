@@ -566,7 +566,7 @@
         cursor: pointer; display: flex; align-items: center; gap: 8px; transition: 0.2s;
     }
     .skip-btn:hover { background: var(--primary); border-color: var(--primary); }
-    .skip-buttons-container { position: absolute; bottom: 60px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 20; pointer-events: none; }
+    .skip-buttons-container { position: absolute; bottom: 60px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; pointer-events: none; }
 
     /* САЙДБАР (Адаптивный) */
     .playlist-sidebar {
@@ -858,6 +858,60 @@
             function initPlayer() {
                 window.player = new Plyr(videoElement, defaultOptions);
 
+                const skipContainer = document.querySelector('.skip-buttons-container');
+                if (skipContainer && window.player.elements.container) {
+                    window.player.elements.container.appendChild(skipContainer);
+                }
+
+                if (window._animeKeyHandler) {
+                    document.removeEventListener('keydown', window._animeKeyHandler);
+                }
+
+                window._animeKeyHandler = function(e) {
+                    if (!window.player) return;
+
+                    const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
+                    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
+                    const code = e.code;
+
+                    if (code === 'Space' || code === 'KeyK') {
+                        e.preventDefault(); // ОТМЕНЯЕМ СКРОЛЛ И НАЖАТИЕ КНОПОК
+                        window.player.togglePlay();
+                    }
+
+                    else if (code === 'ArrowLeft' || code === 'KeyJ') {
+                        e.preventDefault();
+                        window.player.rewind(10);
+                    }
+
+                    else if (code === 'ArrowRight' || code === 'KeyL') {
+                        e.preventDefault();
+                        window.player.forward(10);
+                    }
+
+                    else if (code === 'ArrowUp') {
+                        e.preventDefault();
+                        window.player.increaseVolume(0.1);
+                    }
+
+                    else if (code === 'ArrowDown') {
+                        e.preventDefault();
+                        window.player.decreaseVolume(0.1);
+                    }
+
+                    else if (code === 'KeyF') {
+                        e.preventDefault();
+                        window.player.fullscreen.toggle();
+                    }
+
+                    else if (code === 'KeyM') {
+                        e.preventDefault();
+                        window.player.muted = !window.player.muted;
+                    }
+                };
+
+                document.addEventListener('keydown', window._animeKeyHandler);
+
                 window.player.on('timeupdate', () => {
                     const t = window.player.currentTime;
                     if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'flex';
@@ -959,6 +1013,7 @@
 
             // Делаем функцию глобальной, чтобы ее можно было вызывать из HTML (onclick="selectEpisode(...)")
             window.selectEpisode = function (btn) {
+                btn.blur();
                 currentBtn = btn;
                 document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
@@ -974,6 +1029,11 @@
                 qualities.sort((a, b) => b - a);
 
                 if (!window.player) initPlayer(); // Создаем плеер, если его еще нет
+                setTimeout(() => {
+                    if (window.player && window.player.elements.container) {
+                        window.player.elements.container.focus();
+                    }
+                }, 100);
 
                 let selectedQuality = currentQuality;
                 if (!qualities.includes(selectedQuality)) {

@@ -39,7 +39,7 @@
 
             <div class="profile-actions">
                 <a href="{% url 'settings' %}" class="action-btn settings-btn" title="Настройки">⚙️ Настройки</a>
-                <form action="{% url 'logout' %}" method="post" style="display:contents;">
+                <form action="{% url 'logout' %}" method="post" style="display:contents;" data-no-swup>
                     {% csrf_token %}
                     <button type="submit" class="action-btn logout">Выйти</button>
                 </form>
