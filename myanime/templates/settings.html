@@ -191,7 +191,85 @@
     </form>
 </div>
 
+<div id="cropModal" class="crop-modal">
+    <div class="crop-container">
+        <h3 class="crop-title">Редактирование фото</h3>
+        <div class="img-container">
+            <img id="imageToCrop" src="" alt="Picture">
+        </div>
+        <div class="crop-actions">
+            <button type="button" class="btn-secondary" onclick="closeCropModal()">Отмена</button>
+            <button type="button" class="save-btn" id="cropAndSave">Применить</button>
+        </div>
+    </div>
+</div>
+
 <style>
+
+    /* === STYLES FOR CROP MODAL === */
+    .crop-modal {
+        display: none; /* Скрыто по умолчанию */
+        position: fixed;
+        z-index: 9999; /* Поверх всего */
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+        background-color: rgba(0, 0, 0, 0.85); /* Затемнение фона */
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        box-sizing: border-box;
+        backdrop-filter: blur(5px);
+    }
+
+    .crop-container {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 500px; /* Макс ширина на десктопе */
+        padding: 20px;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .crop-title {
+        margin: 0 0 15px 0;
+        color: var(--text-main);
+        text-align: center;
+    }
+
+    /* Контейнер самой картинки - ограничиваем высоту */
+    .img-container {
+        height: 60vh; /* На мобилке займет 60% высоты экрана */
+        max-height: 400px;
+        background: #000;
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 20px;
+    }
+
+    /* Картинка внутри должна быть 100% */
+    .img-container img {
+        max-width: 100%;
+        display: block;
+    }
+
+    .crop-actions {
+        display: flex;
+        justify-content: space-between;
+        gap: 15px;
+    }
+
+    .crop-actions button {
+        flex: 1; /* Кнопки растягиваются */
+    }
+
+    /* Круглая маска в самом кроппере (опционально, визуальный эффект) */
+    .cropper-view-box,
+    .cropper-face {
+        border-radius: 50%;
+    }
 
     /* === ЦВЕТОВЫЕ СВОТЧИ === */
     .color-picker {
@@ -456,20 +534,119 @@
         if(tabId === 'security') buttons[3].classList.add('active');
     }
 
+    // function previewAvatar(input) {
+    //     if (input.files && input.files[0]) {
+    //         const reader = new FileReader();
+    //         reader.onload = function(e) {
+    //             const img = document.getElementById('avatarPreview');
+    //             const placeholder = document.getElementById('avatarPlaceholder');
+
+    //             img.src = e.target.result;
+    //             img.style.display = 'block';
+    //             if(placeholder) placeholder.style.display = 'none';
+    //         }
+    //         reader.readAsDataURL(input.files[0]);
+    //     }
+    // }
+</script>
+
+<script>
+    let cropper; // Глобальная переменная для экземпляра кроппера
+    const avatarInput = document.getElementById('avatarInput');
+    const imageToCrop = document.getElementById('imageToCrop');
+    const cropModal = document.getElementById('cropModal');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+
+    // 1. Перехватываем выбор файла
     function previewAvatar(input) {
         if (input.files && input.files[0]) {
+            const file = input.files[0];
+
+            // Проверка на картинку
+            if (!file.type.startsWith('image/')) return;
+
             const reader = new FileReader();
             reader.onload = function(e) {
-                const img = document.getElementById('avatarPreview');
-                const placeholder = document.getElementById('avatarPlaceholder');
-
-                img.src = e.target.result;
-                img.style.display = 'block';
-                if(placeholder) placeholder.style.display = 'none';
+                // Вместо показа сразу, открываем редактор
+                openCropModal(e.target.result);
+                // Сбрасываем value инпута, чтобы если пользователь нажмет "Отмена",
+                // он мог выбрать тот же файл снова (событие onchange сработало бы)
+                input.value = '';
             }
-            reader.readAsDataURL(input.files[0]);
+            reader.readAsDataURL(file);
         }
     }
+
+    // 2. Открытие модального окна
+    function openCropModal(imageSrc) {
+        imageToCrop.src = imageSrc;
+        cropModal.style.display = 'flex';
+
+        // Инициализация Cropper.js
+        if (cropper) {
+            cropper.destroy();
+        }
+
+        cropper = new Cropper(imageToCrop, {
+            aspectRatio: 1, // Квадрат (для аватарок)
+            viewMode: 1,    // Ограничить область кропа размерами картинки
+            dragMode: 'move', // Можно двигать картинку пальцем
+            autoCropArea: 0.8, // Размер области по умолчанию
+            restore: false,
+            guides: false,
+            center: false,
+            highlight: false,
+            cropBoxMovable: true,
+            cropBoxResizable: true,
+            toggleDragModeOnDblclick: false,
+        });
+    }
+
+    // 3. Закрытие модального окна
+    window.closeCropModal = function() {
+        cropModal.style.display = 'none';
+        if (cropper) {
+            cropper.destroy();
+            cropper = null;
+        }
+    }
+
+    // 4. Логика кнопки "Применить"
+    document.getElementById('cropAndSave').addEventListener('click', function() {
+        if (!cropper) return;
+
+        // Получаем обрезанный canvas
+        const canvas = cropper.getCroppedCanvas({
+            width: 400, // Ресайзим до разумного размера (чтобы не грузить 4к аватарки)
+            height: 400,
+        });
+
+        // Конвертируем canvas в Blob (файл)
+        canvas.toBlob(function(blob) {
+            // 1. Обновляем превью на странице
+            const url = URL.createObjectURL(blob);
+            avatarPreview.src = url;
+            avatarPreview.style.display = 'block';
+            if (avatarPlaceholder) avatarPlaceholder.style.display = 'none';
+
+            // 2. 🔥 МАГИЯ: Подменяем файл в инпуте на обрезанный
+            // Создаем новый файл из блоба
+            const newFile = new File([blob], "avatar_cropped.png", { type: "image/png" });
+
+            // Используем DataTransfer для имитации выбора файла
+            const dataTransfer = new DataTransfer();
+            dataTransfer.items.add(newFile);
+            avatarInput.files = dataTransfer.files;
+
+            // Закрываем модалку
+            closeCropModal();
+
+            // (Опционально) Показать тост
+            // if (typeof showToast === 'function') showToast('Фото готово к сохранению', 'success');
+
+        }, 'image/png');
+    });
 </script>
 
 <script>

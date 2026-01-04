@@ -19,6 +19,8 @@
     <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
     <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
     <style>
         /* =========================================
            1. ПЕРЕМЕННЫЕ И БАЗА
@@ -45,6 +47,8 @@
             --glass-element-shadow: rgba(0, 0, 0, 0.4);
             /* Фон для аватарки */
             --glass-avatar-bg: rgba(255, 255, 255, 0.05);
+            --grad-start: rgba(235, 225, 255, 0.2);
+            --grad-end: rgba(139, 92, 246, 0.5);
         }
 
         body.light-theme {
@@ -69,16 +73,22 @@
             --glass-element-shadow: rgba(0, 0, 0, 0.05);
             /* Фон для аватарки */
             --glass-avatar-bg: rgba(255, 255, 255, 0.4);
+            --grad-start: rgba(139, 92, 246, 0.1);
+            --grad-end: rgba(139, 92, 246, 0.4);
         }
         body[data-accent="orange"] {
             --primary: #ff3d00;
             --primary-glow: rgba(255, 61, 0, 0.5);
+            --grad-start: rgba(255, 240, 230, 0.2);
+            --grad-end: rgba(255, 61, 0, 0.5);
         }
 
         /* Корректировка оранжевого для светлой темы (чуть темнее для контраста) */
         body.light-theme[data-accent="orange"] {
             --primary: #ea580c;
             --primary-glow: rgba(234, 88, 12, 0.3);
+            --grad-start: rgba(234, 88, 12, 0.1);
+            --grad-end: rgba(234, 88, 12, 0.4);
         }
 
         *, *::before, *::after {
