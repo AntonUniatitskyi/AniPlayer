@@ -36,6 +36,15 @@
             --input-bg: #27272a;
             --shadow: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.5);
             --glass-bg: rgba(24, 24, 27, 0.98);
+
+            /* Темное полупрозрачное стекло */
+            --glass-element-bg: rgba(0, 0, 0, 0.3);
+            /* Светлая тонкая обводка, чтобы видеть границы на темном */
+            --glass-element-border: rgba(255, 255, 255, 0.1);
+            /* Тень для объема */
+            --glass-element-shadow: rgba(0, 0, 0, 0.4);
+            /* Фон для аватарки */
+            --glass-avatar-bg: rgba(255, 255, 255, 0.05);
         }
 
         body.light-theme {
@@ -51,6 +60,15 @@
             --input-bg: #e2e8f0;
             --shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             --glass-bg: rgba(255, 255, 255, 0.95);
+
+            /* Молочно-белое стекло */
+            --glass-element-bg: rgba(255, 255, 255, 0.65);
+            /* Темная обводка ("карандашная"), чтобы видеть границы на белом */
+            --glass-element-border: rgba(0, 0, 0, 0.08);
+            /* Легкая тень */
+            --glass-element-shadow: rgba(0, 0, 0, 0.05);
+            /* Фон для аватарки */
+            --glass-avatar-bg: rgba(255, 255, 255, 0.4);
         }
         body[data-accent="orange"] {
             --primary: #ff3d00;
@@ -530,7 +548,12 @@
         </div>
     </header>
 
-    <main id="swup" class="transition-fade">{% block content %}{% endblock %}</main>
+    <main id="swup" class="transition-fade">
+        <div id="server-accent-marker"
+         data-color="{% if user.is_authenticated and user.profile.accent_color == 'orange' %}orange{% else %}default{% endif %}"
+         style="display: none;"></div>
+        {% block content %}{% endblock %}
+    </main>
 
     <footer>
         <div class="header-container">
@@ -561,9 +584,24 @@
         }
 
         function initAccent() {
-            const savedAccent = localStorage.getItem('accent');
-            // Если в памяти 'orange', ставим атрибут. Если нет — убираем (вернется фиолетовый)
-            if (savedAccent === 'orange') {
+            const marker = document.getElementById('server-accent-marker');
+            let accentToApply = null;
+
+            if (marker) {
+                const serverColor = marker.getAttribute('data-color');
+
+                if (serverColor === 'orange') {
+                    accentToApply = 'orange';
+                    localStorage.setItem('accent', 'orange'); // Обновляем память
+                } else {
+                    accentToApply = 'default';
+                    localStorage.removeItem('accent'); // Если сервер говорит default, чистим память (например, при выходе)
+                }
+            }
+            else {
+                accentToApply = localStorage.getItem('accent') === 'orange' ? 'orange' : 'default';
+            }
+            if (accentToApply === 'orange') {
                 document.body.setAttribute('data-accent', 'orange');
             } else {
                 document.body.removeAttribute('data-accent');
