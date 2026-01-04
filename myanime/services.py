@@ -63,10 +63,24 @@ def save_batch_to_db(batch_data, stats):
                         'preview') or poster_obj.get('thumbnail')
                 if poster_path and poster_path.startswith('/'):
                     poster_path = BASE_SITE_URL + poster_path
-                api_updated = rel_data.get('updated')
+
+                year_val = rel_data.get('year')
+                if year_val:
+                    try:
+                        year_val = int(year_val)
+                    except (ValueError, TypeError):
+                        year_val = None
+
+                api_updated = rel_data.get('updated_at')
                 if not api_updated:
-                    # Если API вернул null, берем текущее время
                     api_updated = timezone.now()
+
+                type_obj = rel_data.get('type')
+                kind_val = None
+                kind_desc = None
+                if isinstance(type_obj, dict):
+                    kind_val = type_obj.get('value')       # "TV", "MOVIE", etc.
+                    kind_desc = type_obj.get('description')
                 anime_obj, created = AnimeTitle.objects.update_or_create(
                     anilibria_id=ani_id,
                     defaults={
@@ -76,7 +90,10 @@ def save_batch_to_db(batch_data, stats):
                         'description': rel_data.get('description', '') or '',
                         'poster_path': poster_path or '',
                         'player_url': '',
-                        'updated_at': api_updated
+                        'updated_at': api_updated,
+                        'kind': kind_val,
+                        'kind_ru': kind_desc,
+                        'year': year_val,
                     }
                 )
                 if created:

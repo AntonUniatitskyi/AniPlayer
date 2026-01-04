@@ -50,7 +50,10 @@
 
                 <div class="meta-tags">
                     {% if anime.updated_at %}
-                        <span class="tag year">{{ anime.updated_at|date:"Y" }}</span>
+                        <span class="tag year">{{ anime.year }}</span>
+                    {% endif %}
+                    {% if anime.kind_ru %}
+                        <span class="tag type">{{ anime.kind_ru }}</span>
                     {% endif %}
                     {% for genre in anime.genres.all %}
                         <span class="tag">{{ genre.name }}</span>
@@ -130,7 +133,7 @@
 
         {% if anime.episodes.exists %}
         <div class="player-section" id="watch">
-            <div class="cinema-container">
+            <div class="cinema-container {% if anime.kind == 'MOVIE' %}movie-mode{% endif %}">
                 <div class="video-wrapper">
                     <video id="player" controls crossorigin playsinline></video>
 
@@ -549,6 +552,28 @@
         border: 1px solid var(--border);
         box-shadow: var(--shadow); /* Тень из переменных */
         align-items: stretch;
+    }
+    .cinema-container.movie-mode {
+        display: block;
+        max-width: 1000px;
+        margin: 0 auto;
+    }
+
+    .cinema-container.movie-mode .playlist-sidebar {
+        display: none !important;
+    }
+
+    .cinema-container.movie-mode .video-wrapper {
+        width: 100%;
+        aspect-ratio: 16/9;      /* Держим кинематографичные пропорции */
+        border-radius: 16px;     /* Скругляем углы у всего плеера */
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); /* Добавляем мощную "киношную" тень */
+    }
+
+    .cinema-container.movie-mode {
+        border: none;
+        background: transparent;
+        box-shadow: none;
     }
 
     /* Видео остается черным всегда */

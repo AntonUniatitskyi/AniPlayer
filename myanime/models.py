@@ -43,6 +43,9 @@ class AnimeTitle(models.Model):
     updated_at = models.DateTimeField(default=timezone.now, verbose_name="Дата обновления")
     franchise = models.ForeignKey(Franchise, on_delete=models.SET_NULL, null=True, blank=True, related_name='releases', verbose_name="Франшиза")
     franchise_order = models.IntegerField("Порядок просмотра", default=0)
+    kind = models.CharField(max_length=50, blank=True, null=True, verbose_name="Тип релиза")
+    kind_ru = models.CharField(max_length=50, blank=True, null=True, verbose_name="Тип (рус)")
+    year = models.IntegerField(null=True, blank=True, verbose_name="Год выхода")
 
     def __str__(self):
         return self.name_ru
