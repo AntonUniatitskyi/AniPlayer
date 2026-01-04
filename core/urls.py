@@ -16,7 +16,7 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from myanime import views
 from django.contrib.auth.views import LoginView, LogoutView
 from django.contrib.auth import views as auth_views
@@ -26,6 +26,7 @@ from django.views.generic import TemplateView
 from myanime.forms import TelegramPasswordResetForm
 
 urlpatterns = [
+    path("admin/log-viewer/", include("log_viewer.urls")),
     path("admin/", admin.site.urls),
     path("", views.AnimeTitleListView.as_view(), name="home"),
     path('anime/<slug:slug>/', views.AnimeTitleDetailView.as_view(), name='anime_detail'),

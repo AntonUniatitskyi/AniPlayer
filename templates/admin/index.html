@@ -1,0 +1,102 @@
+{% extends 'unfold/layouts/base_simple.html' %}
+{% load i18n static %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="flex flex-col gap-6">
+
+    <div class="flex flex-col">
+        <h1 class="font-bold text-3xl text-gray-900 dark:text-gray-100 font-outfit">
+            Обзор системы
+        </h1>
+        <p class="text-gray-500 dark:text-gray-400">
+            Добро пожаловать, {{ request.user.username }}! Вот что происходит на сайте сегодня.
+        </p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {% for card in kpi %}
+        <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex flex-col justify-between h-32 relative overflow-hidden group hover:shadow-md transition-all">
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-transparent to-primary-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+
+            <div class="flex justify-between items-start z-10">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        {{ card.title }}
+                    </p>
+                    <h3 class="text-3xl font-bold text-gray-900 dark:text-white mt-1 font-outfit">
+                        {{ card.value }}
+                    </h3>
+                </div>
+                <span class="material-symbols-outlined {{ card.color }} bg-gray-50 dark:bg-gray-700/50 p-2 rounded-lg text-2xl">
+                    {{ card.icon }}
+                </span>
+            </div>
+
+            <div class="z-10 mt-auto">
+                <span class="text-xs font-medium text-green-600 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-2 py-1 rounded-full">
+                    {{ card.trend }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-4">
+
+        <div class="lg:col-span-2 bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-6">
+            <h3 class="font-bold text-lg mb-4 text-gray-900 dark:text-white font-outfit">Быстрые действия</h3>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <a href="/admin/myanime/animetitle/add/" class="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 hover:border-primary-500 hover:bg-primary-50 dark:hover:bg-primary-900/20 hover:text-primary-600 dark:hover:text-primary-400 transition-all text-gray-500 dark:text-gray-400 group">
+                    <span class="material-symbols-outlined text-3xl mb-2 group-hover:scale-110 transition-transform">add_circle</span>
+                    <span class="text-sm font-medium">Добавить аниме</span>
+                </a>
+
+                <a href="#" class="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-all text-gray-500 dark:text-gray-400 group">
+                    <span class="material-symbols-outlined text-3xl mb-2 group-hover:scale-110 transition-transform">sync</span>
+                    <span class="text-sm font-medium">Запуск парсера</span>
+                </a>
+
+                 <a href="/admin/auth/user/" class="flex flex-col items-center justify-center p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 hover:border-orange-500 hover:bg-orange-50 dark:hover:bg-orange-900/20 hover:text-orange-600 transition-all text-gray-500 dark:text-gray-400 group">
+                    <span class="material-symbols-outlined text-3xl mb-2 group-hover:scale-110 transition-transform">group_add</span>
+                    <span class="text-sm font-medium">Пользователи</span>
+                </a>
+            </div>
+        </div>
+
+        <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm p-0 overflow-hidden">
+            <div class="p-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+                <h3 class="font-bold text-sm uppercase tracking-wide text-gray-500 dark:text-gray-400">Лог действий</h3>
+            </div>
+
+            <div class="p-0">
+                {% load log %}
+                {% get_admin_log 6 as admin_log for_user user %}
+                {% if admin_log %}
+                    <ul class="divide-y divide-gray-100 dark:divide-gray-700">
+                    {% for entry in admin_log %}
+                        <li class="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors">
+                            <span class="material-symbols-outlined text-lg {% if entry.is_addition %}text-green-500{% elif entry.is_change %}text-yellow-500{% else %}text-red-500{% endif %}">
+                                {% if entry.is_addition %}add_circle{% elif entry.is_change %}edit{% else %}delete{% endif %}
+                            </span>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-sm font-medium text-gray-900 dark:text-gray-200 truncate">
+                                    {{ entry.object_repr }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">
+                                    {{ entry.content_type }} • {{ entry.action_time|timesince }} назад
+                                </p>
+                            </div>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="p-4 text-sm text-gray-500">Нет последних действий.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

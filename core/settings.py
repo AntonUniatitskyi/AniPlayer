@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 from pathlib import Path
 import os
 from decouple import config
+from django.templatetags.static import static
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -40,12 +41,18 @@ CSRF_TRUSTED_ORIGINS = [
 # Application definition
 
 INSTALLED_APPS = [
+    "import_export",
+    "unfold",
+    "unfold.contrib.import_export",
+    "unfold.contrib.filters",  # Красивые фильтры (справа)
+    "unfold.contrib.forms",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "log_viewer",
     "myanime.apps.MyanimeConfig"
 ]
 
@@ -147,3 +154,89 @@ LOGIN_REDIRECT_URL = 'home'
 # Куда перенаправлять после выхода (на главную)
 LOGOUT_REDIRECT_URL = 'home'
 LOGIN_URL = 'login'
+
+UNFOLD = {
+    "SITE_TITLE": "AniPlayer Admin",
+    "SITE_HEADER": "AniPlayer",
+    "SITE_URL": "/",
+    "DASHBOARD_CALLBACK": "core.dashboard.dashboard_callback",
+    # "SITE_ICON": lambda request: static("img/favicon.ico"),  # Если есть иконка
+
+    # 1. Твои шрифты (как в base.html)
+    "STYLES": [
+        lambda request: "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0",
+        lambda request: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap",
+        lambda request: "https://fonts.googleapis.com/css2?family=Outfit:wght@700;900&display=swap",
+        lambda request: static("css/admin_overrides.css"), # <--- Добавили твой файл
+    ],
+
+    # 2. Настройка цветов (Твой фиолетовый #8b5cf6)
+    # Unfold требует цвет в формате RGB (через пробел) для Tailwind
+    "COLORS": {
+        "primary": {
+            "500": "139 92 246",  # Твой #8b5cf6 (Кнопки, активные ссылки)
+            "600": "124 58 237",  # Твой #7c3aed (Цвет при наведении)
+            "900": "139 92 246",  # Используем тот же, чтобы не было грязи
+        },
+    },
+
+    # 3. Настройка боковой панели
+    "SIDEBAR": {
+        "navigation": [
+            {
+                "title": "Инструменты",
+                "items": [
+                    {
+                        "title": "Просмотр логов",
+                        "icon": "description", # Иконка документа
+                        "link": "/admin/log-viewer/", # Путь, который мы прописали выше
+                    },
+                ],
+            },
+        ],
+        "show_search": True,  # Поиск по меню (cmd+k)
+        "show_all_applications": True,
+
+    },
+}
+
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGS_DIR, 'django.log'),
+            'formatter': 'verbose',
+        },
+        'errors_file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(LOGS_DIR, 'errors.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file', 'errors_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+    },
+}
+
+LOG_VIEWER_FILES_DIR = os.path.join(BASE_DIR, "logs") # Путь к папке с логами
+LOG_VIEWER_FILES_PATTERN = "*.log"
+LOG_VIEWER_LINES_LIMIT = 1000
+LOG_VIEWER_REVERSE = True # Самые свежие записи сверху

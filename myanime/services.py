@@ -2,15 +2,22 @@ import asyncio
 import time
 from django.utils import timezone
 import aiohttp
+import logging
 import requests
 from asgiref.sync import sync_to_async
 from django.db import transaction
+from django.conf import settings
 
 from .models import AnimeTitle, Episode, Genre, Franchise
 
 CONCURENT_REQUESTS = 20
 BASE_SITE_URL = "https://aniliberty.top"
 
+logger = logging.getLogger('django')
+
+# Оставляем вывод в консоль для удобства
+stream_handler = logging.StreamHandler()
+logger.addHandler(stream_handler)
 
 async def fetch_json(session, url, params=None):
     try:
@@ -19,7 +26,7 @@ async def fetch_json(session, url, params=None):
                 return None
             return await response.json()
     except Exception as e:
-        print(f"   ⚠️ Ошибка запроса {url}: {e}")
+        logger.error(f"   ⚠️ Ошибка запроса {url}: {e}")
         return None
 
 
@@ -189,16 +196,16 @@ async def process_page(page, session, sem, catalog_url, stats):
     params = {'limit': 12, 'page': page, 'f[sorting]': 'FRESH_AT_DESC'}
 
     async with sem:
-        print(f" Страница {page}: ⏳ Старт загрузки...")
+        logger.info(f" Страница {page}: ⏳ Старт загрузки...")
         catalog_data = await fetch_json(session, catalog_url, params=params)
 
     if not catalog_data:
-        print(f"⚠️ Страница {page}: Пустой ответ или ошибка сети")
+        logger.error(f"⚠️ Страница {page}: Пустой ответ или ошибка сети")
         return False
 
     items = catalog_data.get('data', [])
     if not items:
-        print(f"⚠️ Страница {page}: Нет элементов")
+        logger.warning(f"⚠️ Страница {page}: Нет элементов")
         return False
 
     detail_tasks = [fetch_detail_data(
@@ -207,7 +214,7 @@ async def process_page(page, session, sem, catalog_url, stats):
 
     # Сохраняем в БД
     await sync_to_async(save_batch_to_db)(detail_results, stats)
-    print(f"✅ Страница {page} готова.")
+    logger.info(f"✅ Страница {page} готова.")
     return True
 
 
@@ -224,7 +231,7 @@ async def runner(full_load):
         'Accept': 'application/json',
     }
 
-    print(f"🚀 Запуск парсера...")
+    logger.info(f"🚀 Запуск парсера...")
 
     async with aiohttp.ClientSession(headers=headers, connector=conn) as session:
         max_pages = 5000 if full_load else 5
@@ -235,7 +242,7 @@ async def runner(full_load):
 
             current_batch_range = range(i, min(i + batch_size, max_pages + 1))
 
-            print(
+            logger.info(
                 f"\n--- 📦 Формирование пачки страниц {list(current_batch_range)} ---")
 
             for page in current_batch_range:
@@ -246,7 +253,7 @@ async def runner(full_load):
             if chunk_tasks:
                 results = await asyncio.gather(*chunk_tasks)
                 if not any(results):
-                    print(
+                    logger.warning(
                         f"\n🛑 Все страницы в пачке пустые. Похоже, каталог закончился на странице {i-1}.")
                     break
 
@@ -255,6 +262,6 @@ async def runner(full_load):
 
 def fetch_anilibria_updates(full_load=False):
     stats = asyncio.run(runner(full_load))
-    print(
+    logger.info(
         f"\n🏁 ИТОГ: Создано {stats['anime_created']} аниме, обновлено {stats['anime_updated']} аниме, сохранено {stats['episodes_saved']} эпизодов.")
     return stats['anime_created'], stats['anime_updated']

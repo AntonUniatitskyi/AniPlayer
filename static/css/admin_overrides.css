@@ -1,0 +1,313 @@
+/* ========================================================================
+   MODERN SAAS THEME (AUTO LIGHT/DARK)
+   Дизайн-система на переменных. Работает переключатель тем.
+   ======================================================================== */
+
+/* 1. НАСТРОЙКИ ЦВЕТОВ (ПАЛИТРА) */
+:root {
+    /* --- LIGHT MODE (СВЕТЛАЯ - ПО УМОЛЧАНИЮ) --- */
+    --bg-main: #f4f4f5;         /* Zinc-100: Чуть серый фон для контраста */
+    --bg-surface: #ffffff;      /* Чистый белый для карточек */
+    --bg-sidebar: #ffffff;      /* Сайдбар белый */
+
+    --border-color: #e4e4e7;    /* Светлые границы */
+    --border-focus: #6366f1;    /* Акцент при клике */
+
+    --text-primary: #18181b;    /* Почти черный текст */
+    --text-secondary: #71717a;  /* Серый текст */
+    --text-sidebar: #52525b;    /* Текст в меню */
+
+    --accent-color: #4f46e5;    /* Indigo-600: Основной цвет кнопок/ссылок */
+    --accent-hover: #4338ca;    /* Indigo-700 */
+    --accent-light: rgba(79, 70, 229, 0.1); /* Легкая подложка акцента */
+
+    --shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* --- DARK MODE (ТЕМНАЯ - АКТИВИРУЕТСЯ КНОПКОЙ) --- */
+html.dark:root {
+    --bg-main: #09090b;         /* Zinc-950: Глубокий черный */
+    --bg-surface: #18181b;      /* Zinc-900: Поверхность */
+    --bg-sidebar: #121212;      /* Сайдбар чуть темнее */
+
+    --border-color: #27272a;    /* Темные границы */
+    --border-focus: #818cf8;    /* Акцент посветлее */
+
+    --text-primary: #f4f4f5;    /* Светлый текст */
+    --text-secondary: #a1a1aa;  /* Серый текст */
+    --text-sidebar: #d4d4d8;    /* Текст меню */
+
+    --accent-color: #6366f1;    /* Indigo-500: Ярче для темной темы */
+    --accent-hover: #818cf8;    /* Indigo-400 */
+    --accent-light: rgba(99, 102, 241, 0.15);
+
+    --shadow-card: none;        /* В темной теме тени не нужны, нужны границы */
+}
+
+/* ========================================================================
+   2. БАЗОВЫЕ ПЕРЕОПРЕДЕЛЕНИЯ (СВЯЗЬ С UNFOLD)
+   Мы заставляем Tailwind классы использовать наши переменные
+   ======================================================================== */
+
+body, html {
+    background-color: var(--bg-main) !important;
+    color: var(--text-primary) !important;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif; /* Опрятный шрифт */
+}
+
+/* Переназначаем фоны Unfold */
+.bg-gray-50, .bg-gray-100, .dark .bg-gray-900 {
+    background-color: var(--bg-main) !important;
+}
+
+.bg-white, .dark .bg-gray-800 {
+    background-color: var(--bg-surface) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Границы */
+*, ::before, ::after { border-color: var(--border-color); }
+
+/* Текст */
+.text-gray-500, .text-gray-600, .text-gray-700, .text-gray-900,
+.dark .text-gray-400, .dark .text-gray-300 {
+    color: var(--text-secondary) !important;
+}
+h1, h2, h3, h4, .text-gray-900, .dark .text-white {
+    color: var(--text-primary) !important;
+}
+
+/* ========================================================================
+   3. САЙДБАР (АДАПТИВНЫЙ И ЧИСТЫЙ)
+   ======================================================================== */
+
+/* Используем переменную вместо жесткого #050505 */
+aside,
+.dark aside,
+[class*="bg-slate-900"],
+[class*="bg-gray-900"] {
+    background-color: var(--bg-sidebar) !important;
+    background-image: none !important;
+}
+
+/* Фикс для темной темы, чтобы убрать именно "синеву" Slate-цветов */
+html.dark aside {
+    --bg-sidebar: #050505; /* В темной теме — глубокий черный */
+}
+
+/* Нижняя панель с профилем (root1) */
+aside .border-t {
+    border-top: 1px solid var(--border-color) !important;
+    background-color: transparent !important;
+}
+
+/* Цвета текста в сайдбаре зависят от темы через переменную */
+aside .text-gray-500,
+aside .text-gray-900,
+aside .font-medium {
+    color: var(--text-sidebar) !important;
+}
+
+/* Заголовки групп теперь будут Indigo в обеих темах — это выглядит очень современно */
+aside div[class*="text-xs"][class*="font-medium"],
+aside h3 {
+    margin-top: 28px !important;    /* Чуть больше отступа для ясности */
+    margin-bottom: 12px !important;
+    padding-left: 12px !important;
+    color: var(--accent-color) !important;
+    font-size: 0.65rem !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.12em !important;
+    font-weight: 800 !important;
+    border-bottom: 1px solid var(--accent-light) !important; /* Тонкая линия подчеркивания */
+    width: fit-content;
+    padding-bottom: 2px;
+}
+/* ========================================================================
+   4. КОМПОНЕНТЫ (INPUTS, BUTTONS, CARDS)
+   ======================================================================== */
+
+/* Карточки (панели) */
+.shadow, .shadow-sm, .rounded-md, .card {
+    box-shadow: var(--shadow-card) !important;
+    border-radius: 12px !important; /* Скругленные углы */
+    border: 1px solid var(--border-color) !important;
+}
+
+/* Поля ввода (Input) и Поиск */
+input[type="text"], input[type="search"], input[type="password"], select, textarea,
+div[class*="relative"] input {
+    background-color: var(--bg-surface) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px !important;
+    padding-top: 0.6rem;
+    padding-bottom: 0.6rem;
+}
+
+input:focus, select:focus, textarea:focus {
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 0 2px var(--accent-light) !important; /* Красивое свечение */
+    outline: none !important;
+}
+
+/* Кнопки (Primary) */
+.bg-primary-600, button[type="submit"] {
+    background-color: var(--accent-color) !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    letter-spacing: 0.02em;
+    padding: 8px 16px !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: transform 0.1s, background-color 0.2s;
+}
+
+.bg-primary-600:hover, button[type="submit"]:hover {
+    background-color: var(--accent-hover) !important;
+    transform: translateY(-1px);
+}
+
+/* Таблицы */
+thead th {
+    background-color: var(--bg-main) !important;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    padding: 12px 16px !important;
+}
+tbody td {
+    padding: 14px 16px !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+/* Полоска при наведении на строку таблицы */
+tbody tr:hover td {
+    background-color: var(--bg-main) !important;
+}
+
+/* =========================================================
+   LOG VIEWER CUSTOM STYLES
+   ========================================================= */
+
+/* Фон страницы и контейнера */
+#log-viewer-container,
+.log-viewer-content,
+[id*="DataTables_Table"] {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-primary) !important;
+    border-radius: 12px;
+}
+
+/* Перекрашиваем таблицу DataTables */
+.dataTable thead th {
+    background-color: var(--bg-main) !important;
+    color: var(--accent-color) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+}
+
+.dataTable tbody tr {
+    background-color: var(--bg-surface) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.dataTable tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02) !important;
+}
+
+/* Кнопки "Download", "Search" и пагинация */
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+    background-color: var(--bg-main) !important;
+    border: 1px solid var(--border-color) !important;
+    color: #fff !important;
+    border-radius: 6px;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+    background: var(--bg-main) !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border-color) !important;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button.current {
+    background: var(--accent-color) !important;
+    color: #fff !important;
+}
+
+/* Стилизация самих кнопок скачивания вверху */
+a[href*="download"] {
+    background-color: var(--accent-color) !important;
+    border: none !important;
+    color: #fff !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    text-decoration: none !important;
+    font-weight: 600 !important;
+    transition: 0.2s;
+}
+
+a[href*="download"]:hover {
+    background-color: var(--accent-hover) !important;
+    transform: translateY(-1px);
+}
+
+/* =========================================================
+   FIX: IMPORT/EXPORT BUTTONS POSITIONING
+   ========================================================= */
+
+/* Контейнер кнопок в заголовке */
+.object-tools {
+    display: flex !important;
+    gap: 12px !important; /* Расстояние между кнопками */
+    align-items: center !important;
+    float: right !important;
+    margin-top: 0 !important;
+}
+
+/* Сами кнопки Импорт и Экспорт */
+.object-tools li {
+    list-style: none !important;
+}
+
+.object-tools a.import_link,
+.object-tools a.export_link {
+    background-color: #1a1a1a !important; /* Тёмный фон как у карточек */
+    color: #e4e4e7 !important;
+    border: 1px solid #27272a !important;
+    padding: 8px 16px !important;
+    border-radius: 10px !important;
+    font-size: 13px !important;
+    font-weight: 600 !important;
+    display: flex !important;
+    align-items: center !important;
+    height: 40px !important; /* Фиксированная высота как у кнопки + */
+    transition: all 0.2s ease !important;
+}
+
+/* Кнопка добавления (+) - обычно это .addlink */
+.object-tools a.addlink {
+    background-color: var(--accent-color) !important; /* Твой фиолетовый */
+    border: none !important;
+    border-radius: 10px !important;
+    width: 40px !important;
+    height: 40px !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    order: 3; /* Ставим плюс последним в ряду */
+}
+
+/* Эффекты при наведении */
+.object-tools a.import_link:hover,
+.object-tools a.export_link:hover {
+    background-color: #27272a !important;
+    border-color: var(--accent-color) !important;
+    box-shadow: 0 0 10px var(--accent-glow) !important;
+}
+
+/* Убираем стандартные иконки библиотеки, если они мешают */
+.import_link::before, .export_link::before {
+    display: none !important;
+}
