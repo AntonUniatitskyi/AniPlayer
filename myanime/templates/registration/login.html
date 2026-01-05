@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block title %}Вход | AniParser{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/login.css' %}">
 <div class="auth-wrapper">
     <div class="ambient-light one"></div>
     <div class="ambient-light two"></div>
@@ -65,31 +66,4 @@
 </div>
 
 {% include 'includes/auth_styles.html' %}
-
-<style>
-    .label-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        margin-bottom: 8px;
-    }
-
-    /* Сбрасываем отступ у label, так как он теперь внутри label-row */
-    .form-group label {
-        margin-bottom: 0;
-    }
-
-    .forgot-link {
-        font-size: 0.85rem;
-        color: var(--text-sec);
-        text-decoration: none;
-        transition: color 0.2s ease;
-        font-weight: 500;
-    }
-
-    .forgot-link:hover {
-        color: var(--primary);
-        text-decoration: underline;
-    }
-</style>
 {% endblock %}

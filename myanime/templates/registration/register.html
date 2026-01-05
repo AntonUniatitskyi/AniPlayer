@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
-
+{% load static %}
 {% block title %}Регистрация | AniParser{% endblock %}
 
 {% block content %}
+<link rel="stylesheet" href="{% static 'css/register.css' %}">
 <div class="auth-wrapper">
     <div class="ambient-light one"></div>
     <div class="ambient-light two reg-variant"></div>

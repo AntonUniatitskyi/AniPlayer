@@ -1,0 +1,1198 @@
+/* === CUSTOM DROPDOWN === */
+.custom-dropdown {
+    position: relative;
+    width: auto;
+    flex-grow: 0;
+}
+
+/* Кнопка (Триггер) */
+.dropdown-trigger {
+    width: auto;
+    min-width: 190px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+
+    background: var(--glass-element-bg);
+    /* Ваша переменная стекла */
+    border: 1px solid var(--border);
+    color: var(--text-main);
+
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+    white-space: nowrap;
+}
+
+.dropdown-trigger:hover {
+    background: var(--surface-hover);
+    border-color: var(--text-sec);
+}
+
+.dropdown-trigger.active {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Иконка статуса в кнопке */
+.current-status-icon {
+    display: flex;
+    align-items: center;
+    width: 20px;
+    justify-content: center;
+}
+
+.current-status-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.current-status-text {
+    flex-grow: 1;
+    text-align: center;
+    /* Текст слева, стрелка справа */
+}
+
+.chevron {
+    transition: transform 0.3s ease;
+    color: var(--text-sec);
+}
+
+/* Поворот стрелки при открытии */
+.custom-dropdown.open .chevron {
+    transform: rotate(180deg);
+}
+
+/* === ВЫПАДАЮЩЕЕ МЕНЮ === */
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    /* Отступ снизу */
+    left: 0;
+    width: max-content;
+
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 6px;
+
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    z-index: 100;
+    min-width: 100%;
+    max-width: 250px;
+
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.custom-dropdown.open .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    color: var(--text-sec);
+    cursor: pointer;
+    transition: 0.15s;
+    font-size: 0.85rem;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.dropdown-item:hover {
+    background: var(--surface-hover);
+    color: var(--text-main);
+}
+
+.dropdown-item:hover .dd-icon {
+    color: var(--primary);
+}
+
+.dropdown-item.danger:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.dropdown-item.danger .dd-icon {
+    color: #ef4444;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+}
+
+/* === ПАНЕЛЬ ДЕЙСТВИЙ (User Actions) === */
+.user-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    /* Расстояние между селектом и кнопкой */
+    margin-top: auto;
+    /* Прижимает к низу контейнера, если используется flex-direction: column у родителя */
+    justify-content: flex-start;
+}
+
+/* Обертка для селекта, чтобы позиционировать иконку */
+.custom-select-wrapper {
+    position: relative;
+    flex-grow: 0;
+    /* Селект занимает всё доступное место */
+    max-width: 190px;
+    /* Ограничение ширины для красоты */
+}
+
+/* Стилизация Селекта */
+.status-select {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text-main);
+    border: 1px solid var(--border);
+    padding: 0 40px 0 16px;
+    /* Отступы внутри */
+    height: 48px;
+    /* Фиксированная высота для выравнивания */
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+    /* Центрирует в Firefox */
+    text-align-last: center;
+}
+
+.status-select:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: var(--text-sec);
+}
+
+.status-select:focus {
+    border-color: var(--primary);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+.status-select option {
+    text-align: center;
+}
+
+/* Иконка стрелочки внутри селекта */
+.select-icon {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    color: var(--text-sec);
+}
+
+/* === КНОПКА КОЛОКОЛЬЧИКА === */
+.bell-btn {
+    position: relative;
+    width: 48px;
+    height: 48px;
+    /* Квадратная, высота равна селекту */
+    flex-shrink: 0;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text-sec);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    outline: none;
+}
+
+/* Ховер эффект */
+.bell-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Нажатие */
+.bell-btn:active {
+    transform: scale(0.95);
+}
+
+/* === АКТИВНОЕ СОСТОЯНИЕ (ПОДПИСАН) === */
+.bell-btn.active {
+    background: var(--primary);
+    /* Или используйте #facc15 для золотого */
+    border-color: var(--primary);
+    color: #fff;
+    /* Цвет иконки на активном фоне */
+    box-shadow: 0 4px 15px rgba(var(--primary-rgb), 0.4);
+}
+
+/* Анимация иконки при подписке */
+.bell-btn.active .bell-icon {
+    animation: bell-ring 0.6s ease-in-out;
+    fill: currentColor;
+    /* Заливка колокольчика цветом текста */
+}
+
+/* Маленькая галочка-индикатор */
+.bell-status-check {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 18px;
+    height: 18px;
+    background: #10b981;
+    /* Зеленый цвет успеха */
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--bg-body);
+    /* Обводка под цвет фона страницы */
+    transform: scale(0);
+    transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.bell-btn.active .bell-status-check {
+    transform: scale(1);
+}
+
+/* Анимация звонка */
+@keyframes bell-ring {
+    0% {
+        transform: rotate(0);
+    }
+
+    15% {
+        transform: rotate(15deg);
+    }
+
+    30% {
+        transform: rotate(-15deg);
+    }
+
+    45% {
+        transform: rotate(10deg);
+    }
+
+    60% {
+        transform: rotate(-10deg);
+    }
+
+    75% {
+        transform: rotate(5deg);
+    }
+
+    100% {
+        transform: rotate(0);
+    }
+}
+
+/* === СТИЛИ ДЛЯ БЛОКА "ПОХОЖЕЕ" === */
+
+.similar-section {
+    margin-top: 60px;
+    margin-bottom: 40px;
+}
+
+.section-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 25px;
+    color: var(--text-main);
+    border-left: 4px solid var(--primary);
+    padding-left: 15px;
+}
+
+/* Сама сетка */
+.anime-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 20px;
+}
+
+/* === СТИЛИ КАРТОЧКИ (Дублируем, если они не глобальные) === */
+.anime-card {
+    background: transparent;
+    border: none;
+    border-radius: 16px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    transition: transform 0.3s ease;
+}
+
+.anime-card:hover {
+    transform: translateY(-5px);
+}
+
+.poster-wrapper {
+    position: relative;
+    aspect-ratio: 455/650;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #18181b;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.poster-wrapper img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.anime-card:hover .poster-wrapper img {
+    transform: scale(1.05);
+}
+
+/* Оверлей с кнопкой Play при наведении */
+.card-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: 0.3s;
+}
+
+.anime-card:hover .card-overlay {
+    opacity: 1;
+}
+
+.play-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    transform: scale(0.8);
+    transition: 0.3s;
+}
+
+.anime-card:hover .play-icon {
+    transform: scale(1);
+    background: var(--primary);
+}
+
+.card-info {
+    padding-top: 10px;
+}
+
+.card-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--text-main);
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.anime-card:hover .card-title {
+    color: var(--primary);
+}
+
+.card-meta {
+    font-size: 0.8rem;
+    color: var(--text-sec);
+    margin-top: 4px;
+}
+
+/* Бейджи статуса (если используются в include) */
+.status-badge-overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: #fff;
+    text-transform: uppercase;
+    backdrop-filter: blur(4px);
+}
+
+.anime-card[data-status="watching"] .status-badge-overlay {
+    background: rgba(16, 185, 129, 0.9);
+}
+
+.anime-card[data-status="planned"] .status-badge-overlay {
+    background: rgba(59, 130, 246, 0.9);
+}
+
+.anime-card[data-status="completed"] .status-badge-overlay {
+    background: rgba(139, 92, 246, 0.9);
+}
+
+/* Адаптив для сетки */
+@media (max-width: 600px) {
+    .anime-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 600px) {
+    .user-actions-row {
+        width: 100%;
+    }
+
+    .custom-select-wrapper {
+        max-width: none;
+    }
+}
+
+/* === ОСНОВА === */
+body {
+    background-color: var(--bg-body);
+    color: var(--text-main);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+}
+
+/* Фон: В светлой теме градиент уходит в светлый, текст читается */
+.anime-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-color: var(--bg-body);
+    overflow: hidden;
+}
+
+.backdrop-image {
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center top;
+    filter: blur(60px) brightness(0.5);
+    opacity: 0.5;
+    /* Чуть темнее для контраста */
+    transform: scale(1.1);
+    background-repeat: no-repeat;
+}
+
+.backdrop-gradient {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(to bottom, var(--bg-body) 0%, transparent 40%, var(--bg-body) 100%);
+}
+
+.content-wrapper.detail-page {
+    max-width: 1280px;
+    padding: 30px 20px;
+    position: relative;
+    z-index: 1;
+    margin: 0 auto;
+}
+
+/* === ГЕРОЙ === */
+.anime-hero {
+    display: flex;
+    gap: 40px;
+    margin-bottom: 50px;
+    align-items: flex-start;
+}
+
+.poster-container {
+    flex-shrink: 0;
+    width: 260px;
+}
+
+.poster-card {
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+    /* Тень мягче */
+    border: 1px solid var(--border);
+    background: var(--surface);
+}
+
+.main-poster {
+    width: 100%;
+    display: block;
+    object-fit: cover;
+    aspect-ratio: 455/650;
+}
+
+.info-container {
+    flex-grow: 1;
+    padding-top: 5px;
+    min-width: 0;
+}
+
+.anime-title {
+    font-size: 2.8rem;
+    font-weight: 800;
+    line-height: 1.1;
+    margin: 0 0 10px 0;
+    color: var(--text-main);
+    /* Адаптивный цвет! */
+    letter-spacing: -0.02em;
+    text-shadow: 0 0 30px var(--bg-body);
+    /* Свечение под цвет фона для читаемости */
+}
+
+.anime-subtitle {
+    font-size: 1.2rem;
+    font-weight: 400;
+    color: var(--text-sec);
+    margin: 0 0 20px 0;
+}
+
+.meta-tags {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+}
+
+.tag {
+    background: var(--surface);
+    /* Адаптивный фон */
+    padding: 5px 12px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: var(--text-sec);
+    border: 1px solid var(--border);
+    font-weight: 500;
+}
+
+.tag.year {
+    background: var(--primary);
+    color: #fff;
+    border: none;
+}
+
+.description-box {
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-main);
+    margin-bottom: 30px;
+    max-width: 850px;
+    opacity: 0.9;
+}
+
+/* Селект (кнопка статуса) */
+.status-select {
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--surface);
+    /* Фон меняется */
+    color: var(--text-main);
+    /* Текст меняется */
+    border: 1px solid var(--border);
+    padding: 12px 40px 12px 20px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: 0.2s;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.status-select:hover {
+    border-color: var(--primary);
+}
+
+.status-select option {
+    background: var(--surface);
+    color: var(--text-main);
+    padding: 10px;
+}
+
+.select-arrow {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-sec);
+    pointer-events: none;
+    font-size: 0.7rem;
+}
+
+/* === ПЛЕЕР И СПИСОК === */
+.player-section {
+    margin-top: 40px;
+}
+
+.cinema-container {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    background: var(--surface);
+    /* В светлой теме сайдбар будет светлым! */
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    /* Тень из переменных */
+    align-items: stretch;
+}
+
+.cinema-container.movie-mode {
+    display: block;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.cinema-container.movie-mode .playlist-sidebar {
+    display: none !important;
+}
+
+.cinema-container.movie-mode .video-wrapper {
+    width: 100%;
+    aspect-ratio: 16/9;
+    /* Держим кинематографичные пропорции */
+    border-radius: 16px;
+    /* Скругляем углы у всего плеера */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    /* Добавляем мощную "киношную" тень */
+}
+
+.cinema-container.movie-mode {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+/* Видео остается черным всегда */
+.video-wrapper {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16/9;
+    background: #000;
+    z-index: 2;
+}
+
+.plyr {
+    width: 100%;
+    height: 100%;
+}
+
+/* Кнопки пропуска (всегда темные для контраста с видео) */
+.skip-btn {
+    pointer-events: auto;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: 0.2s;
+}
+
+.skip-btn:hover {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+
+.skip-buttons-container {
+    position: absolute;
+    bottom: 60px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 100;
+    pointer-events: none;
+}
+
+/* САЙДБАР (Адаптивный) */
+.playlist-sidebar {
+    background: var(--surface);
+    /* Цвет темы */
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 0;
+    overflow: hidden;
+    min-height: 100%;
+    overflow: hidden;
+}
+
+.playlist-header {
+    padding: 15px 20px;
+    background: var(--input-bg);
+    /* Чуть темнее фона */
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.ph-title {
+    font-weight: 700;
+    color: var(--text-main);
+    font-size: 1rem;
+}
+
+.ph-count {
+    background: var(--surface);
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    color: var(--text-sec);
+    border: 1px solid var(--border);
+}
+
+.playlist-controls {
+    padding: 15px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.search-wrap {
+    position: relative;
+    width: 100%;
+}
+
+#epSearch {
+    width: 100%;
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    padding: 8px 8px 8px 34px;
+    border-radius: 8px;
+    color: var(--text-main);
+    outline: none;
+    font-size: 0.9rem;
+}
+
+#epSearch:focus {
+    border-color: var(--primary);
+}
+
+.search-wrap .search-icon {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0.5;
+    color: var(--text-sec);
+}
+
+.range-container {
+    display: flex;
+    gap: 5px;
+    overflow-x: auto;
+    padding-bottom: 5px;
+    scrollbar-width: none;
+}
+
+.range-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-sec);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.range-btn:hover {
+    border-color: var(--text-main);
+    color: var(--text-main);
+}
+
+.range-btn.active {
+    background: var(--primary);
+    border-color: var(--primary);
+    color: #fff;
+}
+
+/* Список */
+.episode-list-wrapper {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
+    min-height: 0;
+}
+
+.episode-list-wrapper::-webkit-scrollbar {
+    width: 5px;
+}
+
+.episode-list-wrapper::-webkit-scrollbar-track {
+    background: var(--surface);
+}
+
+.episode-list-wrapper::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 5px;
+}
+
+.episode-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ep-row {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: 0.1s;
+    text-align: left;
+    color: var(--text-sec);
+}
+
+.ep-row:hover {
+    background: var(--surface-hover);
+    color: var(--text-main);
+}
+
+.ep-row.active {
+    background: var(--primary);
+    color: #fff;
+    font-weight: 600;
+}
+
+/* Для активной строки текст всегда белый (т.к. фон primary) */
+.ep-row.active .ep-number,
+.ep-row.active .ep-play-icon {
+    color: #fff;
+    opacity: 1;
+}
+
+.ep-number {
+    width: 25px;
+    margin-right: 10px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+}
+
+.ep-info {
+    flex-grow: 1;
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ep-play-icon {
+    opacity: 0;
+    font-size: 0.7rem;
+}
+
+.ep-row:hover .ep-play-icon,
+.ep-row.active .ep-play-icon {
+    opacity: 1;
+}
+
+/* Ошибки / Пусто */
+.no-eps-found {
+    padding: 20px;
+    text-align: center;
+    color: var(--text-sec);
+    font-size: 0.9rem;
+}
+
+.no-content {
+    text-align: center;
+    padding: 60px;
+    background: var(--surface);
+    border-radius: 20px;
+    border: 1px dashed var(--border);
+}
+
+.empty-icon {
+    font-size: 3rem;
+    margin-bottom: 15px;
+    opacity: 0.5;
+}
+
+/* АДАПТИВ */
+@media (max-width: 1000px) {
+    .anime-hero {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 30px;
+    }
+
+    .info-container {
+        width: 100%;
+        padding: 0;
+    }
+
+    .meta-tags {
+        justify-content: center;
+    }
+
+    .description-box {
+        margin: 0 auto 30px auto;
+    }
+
+    .cinema-container {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+
+    .video-wrapper {
+        width: 100%;
+        height: auto;
+    }
+
+    .playlist-sidebar {
+        height: 350px;
+        border-left: none;
+        border-top: 1px solid var(--border);
+        min-height: auto;
+    }
+}
+
+/* === МОБИЛЬНЫЙ ПЛЕЕР (Исправление Plyr) === */
+@media (max-width: 768px) {
+
+    /* Скрываем слайдер громкости (полоску), оставляем только иконку */
+    .plyr--full-ui.plyr--video .plyr__control--volume input[type=range] {
+        display: none !important;
+    }
+
+    /* Делаем так, чтобы кнопка громкости не занимала лишнее место */
+    .plyr--full-ui.plyr--video .plyr__volume {
+        width: auto;
+        min-width: auto;
+        flex: 0 0 auto;
+    }
+
+    /* Заставляем шкалу прогресса (timeline) занять все свободное место */
+    .plyr--full-ui.plyr--video .plyr__progress__container {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Немного уменьшаем отступы между кнопками для экономии места */
+    .plyr--full-ui.plyr--video .plyr__controls .plyr__control {
+        padding: 7px;
+        margin-left: 2px;
+    }
+
+    /* Переносим таймеры (00:00 / 24:00) чуть компактнее */
+    .plyr__time {
+        font-size: 12px;
+        padding: 0 5px;
+    }
+}
+
+.plyr--video {
+    --plyr-color-main: var(--primary);
+}
+
+/* === СТИЛИ ФРАНШИЗЫ === */
+.franchise-section {
+    margin-bottom: 40px;
+    margin-top: -20px;
+    /* Чуть подтянем к герою */
+}
+
+.franchise-list-container {
+    position: relative;
+    width: 100%;
+}
+
+/* Горизонтальный скролл */
+.franchise-track {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding-bottom: 15px;
+    padding-left: 2px;
+    /* Чтобы тень первого элемента не обрезалась */
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+    scroll-behavior: smooth;
+}
+
+/* Скроллбар для Webkit */
+.franchise-track::-webkit-scrollbar {
+    height: 6px;
+}
+
+.franchise-track::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.franchise-track::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 4px;
+}
+
+.franchise-track::-webkit-scrollbar-thumb:hover {
+    background: var(--text-sec);
+}
+
+/* Карточка */
+.fr-card {
+    flex-shrink: 0;
+    width: 140px;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: transform 0.2s ease;
+}
+
+.fr-card:hover {
+    transform: translateY(-4px);
+}
+
+/* Постер */
+.fr-poster {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 2/3;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.fr-poster img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: 0.3s;
+}
+
+.fr-card:hover .fr-poster img {
+    filter: brightness(1.1);
+}
+
+/* Бейдж с номером (1, 2, 3...) */
+.fr-order {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    font-size: 0.7rem;
+    font-weight: 700;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Оверлей "Сейчас" */
+.fr-overlay.active {
+    position: absolute;
+    inset: 0;
+    background: rgba(var(--primary-rgb), 0.6);
+    /* Полупрозрачный primary */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+/* Если переменная primary-rgb не задана, фолбэк: */
+.fr-overlay.active {
+    background: rgba(139, 92, 246, 0.4);
+    border: 2px solid var(--primary);
+}
+
+.fr-overlay span {
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* Текстовая инфа */
+.fr-meta {
+    display: flex;
+    flex-direction: column;
+}
+
+.fr-year {
+    font-size: 0.75rem;
+    color: var(--text-sec);
+    margin-bottom: 2px;
+}
+
+.fr-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    transition: color 0.2s;
+}
+
+/* Подсветка активного элемента */
+.fr-card.current .fr-name {
+    color: var(--primary);
+}
+
+.fr-card:hover .fr-name {
+    color: var(--primary);
+}
+
+/* Адаптив для мобильных */
+@media (max-width: 768px) {
+    .franchise-card {
+        width: 110px;
+    }
+
+    .fr-order {
+        width: 20px;
+        height: 20px;
+        font-size: 0.65rem;
+    }
+}
