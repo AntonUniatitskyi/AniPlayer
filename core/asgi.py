@@ -10,7 +10,20 @@ https://docs.djangoproject.com/en/6.0/howto/deployment/asgi/
 import os
 
 from django.core.asgi import get_asgi_application
+from channels.routing import ProtocolTypeRouter, URLRouter
+from channels.auth import AuthMiddlewareStack
+import myanime.routing
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+django_asgi_app = get_asgi_application()
+application = ProtocolTypeRouter({
+    # Если пришел HTTP запрос -> отдаем его стандартному Django
+    "http": django_asgi_app,
 
-application = get_asgi_application()
+    # Если пришел WebSocket запрос (ws://)
+    "websocket": AuthMiddlewareStack(
+        URLRouter(
+            myanime.routing.websocket_urlpatterns
+        )
+    ),
+})

@@ -1196,3 +1196,204 @@ body {
         font-size: 0.65rem;
     }
 }
+
+/* Панель комнаты */
+/* Отделяем панель от плеера и других элементов */
+.party-controls-card.glass-panel {
+    margin: 40px 0; /* Увеличиваем отступ сверху и снизу */
+    background: var(--glass-element-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-element-border);
+    border-radius: 20px;
+    padding: 24px;
+    transition: all 0.3s ease;
+}
+
+/* Эффект свечения при наведении на всю панель */
+.party-controls-card.glass-panel:hover {
+    border-color: var(--primary-glow);
+    box-shadow: 0 12px 40px var(--glass-element-shadow);
+}
+
+/* Сетка участников */
+.members-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    padding-top: 8px;
+}
+
+/* Карточка участника (Таблетка) */
+.member-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 6px 6px; /* Больше места справа для имени */
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-element-border);
+    border-radius: 40px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: fadeInSlide 0.4s ease forwards;
+}
+
+.member-item:hover {
+    transform: translateY(-2px);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+/* Выделение хоста */
+.member-item.is-host {
+    border-color: var(--primary);
+    background: var(--primary-glow);
+    box-shadow: 0 0 15px rgba(var(--primary-rgb), 0.2);
+}
+
+/* Обертка аватарки */
+.avatar-wrapper {
+    position: relative;
+    width: 36px;
+    height: 36px;
+}
+
+.member-avatar {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--surface);
+    background: var(--input-bg);
+}
+
+/* Мини-значок короны или статуса */
+.host-badge {
+    position: absolute;
+    bottom: -2px;
+    right: -2px;
+    background: #fbbf24;
+    color: #000;
+    font-size: 8px;
+    font-weight: 900;
+    width: 14px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    border: 1px solid var(--surface);
+}
+
+.member-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--text-main);
+    max-width: 120px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.host-crown {
+    color: #fbbf24;
+    filter: drop-shadow(0 0 5px rgba(251, 191, 36, 0.4));
+}
+
+/* Анимация появления участников */
+@keyframes fadeInSlide {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.player-overlay {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.8);
+    display: flex; justify-content: center; align-items: center;
+    z-index: 100; border-radius: 12px;
+}
+
+/* Группировка кнопок */
+.party-actions-group {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+/* Главная кнопка (Создать / Выйти) */
+.party-main-btn {
+    background: var(--primary);
+    color: #ffffff;
+    border: none;
+    padding: 10px 22px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 4px 15px var(--primary-glow);
+    white-space: nowrap;
+}
+
+.party-main-btn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.1);
+    box-shadow: 0 6px 20px var(--primary-glow);
+}
+
+.party-main-btn:active {
+    transform: translateY(0);
+}
+
+/* Стиль для кнопки "Покинуть комнату" (когда активна) */
+/* Мы можем менять цвет на более нейтральный или красный при выходе */
+.party-main-btn:has(#party-btn-icon:contains('🚪')) {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid var(--glass-element-border);
+    color: var(--text-main);
+}
+
+/* Кнопка копирования ссылки (Круглая/Квадратная скругленная) */
+.action-btn-circle {
+    width: 42px;
+    height: 42px;
+    border-radius: 12px;
+    border: 1px solid var(--glass-element-border);
+    background: var(--surface);
+    color: var(--text-main);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.action-btn-circle:hover {
+    background: var(--primary-glow);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: rotate(-5deg) scale(1.1);
+}
+
+.action-btn-circle svg {
+    transition: transform 0.2s ease;
+}
+
+.action-btn-circle:active svg {
+    transform: scale(0.9);
+}
+
+/* Анимация иконки ✨ в кнопке */
+#party-btn-icon {
+    font-size: 1.2rem;
+    line-height: 1;
+}
+
+/* Состояние "Скопировано" для кнопки (через JS можно добавлять класс) */
+.action-btn-circle.success {
+    border-color: #10b981;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+}

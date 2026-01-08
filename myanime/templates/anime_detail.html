@@ -226,6 +226,31 @@
                     </div>
                 </div>
             </div>
+            <div class="party-controls-card glass-panel mt-4">
+                <div class="party-header-layout">
+                    <div class="party-info-group">
+                        <div>
+                            <h4 class="party-title">Совместный просмотр</h4>
+                            <p id="party-status-text" class="party-subtitle">Создайте комнату, чтобы смотреть вместе с друзьями</p>
+                        </div>
+                    </div>
+                    <div class="party-actions-group">
+                        <button id="btn-copy-link" onclick="copyLink()" class="action-btn-circle" title="Копировать ссылку" style="display: none;">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 13v-1a2 2 0 012-2h7a2 2 0 012 2v7a2 2 0 01-2 2h-7a2 2 0 01-2-2v-1m-1-8H4a2 2 0 00-2 2v7a2 2 0 002 2h7a2 2 0 002-2v-3"></path></svg>
+                        </button>
+                        <button id="btn-party-toggle" onclick="handlePartyAction()" class="party-main-btn">
+                            <span id="party-btn-icon">✨</span>
+                            <span id="party-btn-text">Создать комнату</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="party-members-area" class="party-members-section" style="display: none;">
+                    <div class="party-divider"></div>
+                    <div class="members-grid" id="members-list">
+                        </div>
+                </div>
+            </div>
         </div>
         {% else %}
             <div class="no-content">
@@ -252,8 +277,36 @@
     </div>
 
     <script>
+    {
+        window.bufferingUsers = window.bufferingUsers || new Set();
+        window.partySocket = window.partySocket || null;
+        window.isRemoteCommand = false;
+        window.isInitializing = true;
+        // Выносим настройки сюда, чтобы handlePartyMessage мог их менять
+        window.userSettings = window.userSettings || {
+            autoNext: true,
+            autoSkip: false,
+            defaultQuality: 1080
+        };
         // Оборачиваем всю логику в функцию initDetail
         function initDetail() {
+            if (window.bufferingUsers) {
+                window.bufferingUsers.clear(); // Очищаем список при инициализации новой страницы
+            }
+            if (window.player && typeof window.player.destroy === 'function') {
+                console.log("Уничтожаем старый плеер...");
+                window.player.destroy();
+                window.player = null;
+            }
+            if (window.hls) {
+                console.log("Останавливаем старый поток HLS...");
+                window.hls.destroy();
+                window.hls = null;
+            }
+            if (window.heartbeatInterval) {
+                clearInterval(window.heartbeatInterval);
+            }
+
             const videoElement = document.getElementById('player');
             const skipOpBtn = document.getElementById('skipOp');
             const skipEdBtn = document.getElementById('skipEd');
@@ -262,17 +315,19 @@
             if (!videoElement) return;
 
             // Данные пользователя (рендерим один раз)
-            const userSettings = {
-                {% if user.is_authenticated %}
-                    autoNext: {{ user.profile.auto_next|yesno:"true,false" }},
-                    autoSkip: {{ user.profile.auto_skip_intro|yesno:"true,false" }},
-                    defaultQuality: parseInt("{{ user.profile.default_quality|default:'1080' }}"),
-                {% else %}
-                    autoNext: true,
-                    autoSkip: false,
-                    defaultQuality: 1080,
-                {% endif %}
-            };
+            if (!window.partySocket) {
+                window.userSettings = {
+                    {% if user.is_authenticated %}
+                        autoNext: {{ user.profile.auto_next|yesno:"true,false" }},
+                        autoSkip: {{ user.profile.auto_skip_intro|yesno:"true,false" }},
+                        defaultQuality: parseInt("{{ user.profile.default_quality|default:'1080' }}"),
+                    {% else %}
+                        autoNext: true,
+                        autoSkip: false,
+                        defaultQuality: 1080,
+                    {% endif %}
+                };
+            }
 
             const activeFranchiseCard = document.querySelector('.fr-card.current');
             const franchiseTrack = document.querySelector('.franchise-track');
@@ -285,7 +340,7 @@
             }
 
             // Глобальные переменные для плеера
-            let hls = null;
+            window.hls = null;
             // Сохраняем плеер в window, чтобы Swup мог его уничтожить при уходе
             window.player = null;
 
@@ -313,6 +368,23 @@
 
             function initPlayer() {
                 window.player = new Plyr(videoElement, defaultOptions);
+                window.isRemoteCommand = false;
+
+                const events = ['play', 'pause', 'seeked'];
+                events.forEach(eventName => {
+                    window.player.on(eventName, () => {
+                        if (window.isRemoteCommand || window.isInitializing) return; // Игнорируем, если это пришло из сокета
+
+                        // Отправляем событие в комнату через твой WebSocket (объект partySocket)
+                        if (window.partySocket && window.partySocket.readyState === WebSocket.OPEN) {
+                            window.partySocket.send(JSON.stringify({
+                                'type': 'player_sync',
+                                'action': eventName,
+                                'time': window.player.currentTime
+                            }));
+                        }
+                    });
+                });
 
                 const skipContainer = document.querySelector('.skip-buttons-container');
                 if (skipContainer && window.player.elements.container) {
@@ -321,6 +393,36 @@
 
                 if (window._animeKeyHandler) {
                     document.removeEventListener('keydown', window._animeKeyHandler);
+                }
+
+                // Событие: плеер встал из-за нехватки данных
+                window.player.on('waiting', () => {
+                    if (window.partySocket && !window.isRemoteCommand) {
+                        // Уведомляем комнату, что мы "встали"
+                        window.partySocket.send(JSON.stringify({
+                            'action': 'buffer_start',
+                            'user': '{{ user.username }}'
+                        }));
+                    }
+                });
+
+                // Событие: плеер прогрузился и готов играть
+                window.player.on('canplay', () => {
+                    if (window.partySocket && !window.isRemoteCommand) {
+                        window.partySocket.send(JSON.stringify({
+                            'action': 'buffer_end',
+                            'user': '{{ user.username }}'
+                        }));
+                    }
+                });
+
+                if (window.location.search.includes(`_{{ user.id }}`)) {
+                    if (window.heartbeatInterval) clearInterval(window.heartbeatInterval);
+                    window.heartbeatInterval = setInterval(() => {
+                        if (window.partySocket?.readyState === WebSocket.OPEN && !window.player.paused) {
+                            window.partySocket.send(JSON.stringify({ 'action': 'heartbeat', 'time': window.player.currentTime }));
+                        }
+                    }, 5000);
                 }
 
                 window._animeKeyHandler = function(e) {
@@ -439,7 +541,11 @@
                             window.player.config.quality.options = availableQualities;
                         }
                         if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) window.player.play().catch(() => {});
+                        if (autoPlay) window.player.play().catch(() => {
+                            window.player.muted = true;
+                            window.player.play();
+                            showUnmuteOverlay();
+                        });
                     });
                     hls.on(Hls.Events.ERROR, function (event, data) {
                         if (data.fatal) {
@@ -469,6 +575,13 @@
 
             // Делаем функцию глобальной, чтобы ее можно было вызывать из HTML (onclick="selectEpisode(...)")
             window.selectEpisode = function (btn) {
+                if (!window.isRemoteCommand && window.partySocket) {
+                    window.partySocket.send(JSON.stringify({
+                        'action': 'change_episode',
+                        'episode_id': btn.getAttribute('data-id'),
+                        'ordinal': btn.getAttribute('data-ordinal')
+                    }));
+                }
                 btn.blur();
                 currentBtn = btn;
                 document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
@@ -540,6 +653,7 @@
             // ЗАПУСК ЛОГИКИ
             initPlayer();
             initEpisodeNav();
+            checkRoomInUrl();
 
             let targetBtn = null;
             let startTimestamp = 0;
@@ -548,6 +662,8 @@
                 if (targetBtn) startTimestamp = lastTimestamp;
             }
             if (!targetBtn && allEpBtns.length > 0) targetBtn = allEpBtns[0];
+
+            const lastId = "{{ last_episode_id|default:'' }}";
 
             if (targetBtn) {
                 const btnIndex = allEpBtns.indexOf(targetBtn);
@@ -584,7 +700,247 @@
                 });
             }
         }
+        checkRoomInUrl();
 
+        function showUnmuteOverlay() {
+            const overlay = document.getElementById('unmute-overlay');
+            if (overlay) overlay.style.display = 'flex';
+        }
+
+        function unmuteAndStart() {
+            if (window.player) {
+                window.player.muted = false;
+                window.player.volume = 0.8;
+                window.player.play();
+            }
+            document.getElementById('unmute-overlay').style.display = 'none';
+            if (typeof showToast === 'function') showToast('Звук включен', 'success');
+        }
+
+        // Глобальные переменные для связи
+        // window.partySocket = window.partySocket || null;
+        // window.isRemoteCommand = false; // Флаг, чтобы избежать петли событий
+
+        window.handlePartyAction = function() {
+            if (!window.partySocket) {
+                createParty();
+            } else {
+                leaveParty();
+            }
+        }
+
+        function createParty() {
+            const animeId = "{{ anime.id }}";
+            const roomName = `party_${animeId}_{{ user.id }}`;
+            window.isInitializing = false;
+            const wsStart = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const endpoint = wsStart + window.location.host + '/ws/party/' + roomName + '/';
+
+            window.partySocket = new WebSocket(endpoint);
+
+            window.partySocket.onopen = () => {
+                const newUrl = window.location.pathname + '?room=' + roomName;
+                window.history.replaceState({ path: newUrl }, '', newUrl);
+                showToast('Комната создана!', 'success');
+                updatePartyUI(true, roomName);
+                if (window.partySocket.readyState === WebSocket.OPEN) {
+                    window.partySocket.send(JSON.stringify({
+                        'action': 'update_room_settings',
+                        'autoSkip': window.userSettings.autoSkip // Это значение из профиля Хоста
+                    }));
+                }
+            };
+
+            window.partySocket.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                handlePartyMessage(data);
+            };
+
+            window.partySocket.onclose = () => {
+                updatePartyUI(false);
+                window.partySocket = null;
+            };
+        }
+
+        // Функция выхода из комнаты
+        function leaveParty() {
+            if (window.partySocket) {
+                window.partySocket.close();
+                window.partySocket = null;
+                showToast('Вы вышли из комнаты', 'info');
+                updatePartyUI(false);
+            }
+        }
+
+        // Проверка URL на наличие комнаты при инициализации
+        function checkRoomInUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomName = urlParams.get('room');
+            if (roomName && !window.partySocket) {
+                // Если в URL есть комната, а мы еще не подключены — подключаемся
+                joinParty(roomName);
+            }
+        }
+
+        // Вспомогательная функция для входа (аналог create, но с заданным именем)
+        function joinParty(roomName) {
+            const wsStart = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const endpoint = wsStart + window.location.host + '/ws/party/' + roomName + '/';
+
+            window.partySocket = new WebSocket(endpoint);
+            window.partySocket.onopen = () => {
+                const newUrl = window.location.pathname + '?room=' + roomName;
+                window.history.replaceState({ path: newUrl }, '', newUrl);
+                showToast('Присоединение к комнате...', 'success');
+                updatePartyUI(true, roomName);
+                window.isInitializing = true;
+            };
+            window.partySocket.onmessage = (e) => handlePartyMessage(JSON.parse(e.data));
+            window.partySocket.onclose = () => { updatePartyUI(false); window.partySocket = null; };
+        }
+
+        function handlePartyMessage(data) {
+            console.log("Party members data:", data.members);
+            if (data.type === 'members_update') {
+                const list = document.getElementById('members-list');
+                if (list) {
+                    list.innerHTML = data.members.map(m => {
+                        // Проверяем, есть ли аватарка, если нет — ставим заглушку
+                        const avatarSrc = m.avatar ? m.avatar : '/static/img/default-avatar.png';
+
+                        return `
+                            <div class="member-item ${m.is_host ? 'is-host' : ''}">
+                                <div class="avatar-wrapper">
+                                    <img src="${avatarSrc}"
+                                        alt="${m.username}"
+                                        class="member-avatar">
+                                    ${m.is_host ? '<span class="host-badge">主</span>' : ''}
+                                </div>
+                                <span class="member-name">${m.username}</span>
+                                ${m.is_host ? `
+                                    <svg class="host-crown" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M5 16L3 5L8.5 10L12 4L15.5 10L21 5L19 16H5M19 19C19 19.6 18.6 20 18 20H6C5.4 20 5 19.6 5 19V18H19V19Z"/>
+                                    </svg>` : ''}
+                            </div>
+                        `;
+                    }).join('');
+                }
+                return;
+            }
+            if (data.action === 'ask_for_sync') {
+                if (window.player && window.partySocket) {
+                    const activeBtn = document.querySelector('.ep-row.active');
+                    window.partySocket.send(JSON.stringify({
+                        'action': 'sync_response',
+                        'target': data.target,
+                        'time': window.player.currentTime,
+                        'episode_id': activeBtn ? activeBtn.getAttribute('data-id') : null
+                    }));
+                }
+                return;
+            }
+            if (data.action === 'apply_room_settings') {
+                window.userSettings.autoSkip = data.autoSkip;
+                const msg = data.autoSkip ? 'Автопропуск включен хостом' : 'Автопропуск выключен хостом';
+                if (typeof showToast === 'function') showToast(msg, 'info');
+                return;
+            }
+            if (data.action === 'buffer_start') {
+                bufferingUsers.add(data.user);
+                window.player.pause();
+                updateBufferStatus();
+                return;
+            }
+            if (data.action === 'buffer_end') {
+                bufferingUsers.delete(data.user);
+                updateBufferStatus();
+                if (bufferingUsers.size === 0) window.player.play();
+                return;
+            }
+            if (!window.player) return;
+
+
+            window.isRemoteCommand = true; // Блокируем отправку событий обратно в сокет
+
+            switch (data.action) {
+                case 'heartbeat':
+                    if (!window.player) return;
+
+                    const timeDiff = window.player.currentTime - data.time; // Положительное = гость впереди
+
+                    // Если гость убежал вперед хоста больше чем на 2 секунды (хост лагает)
+                    if (timeDiff > 2) {
+                        window.player.pause(); // Мягко останавливаем гостя
+                        if (typeof showToast === 'function') showToast('Ожидаем хоста...', 'warning');
+                    }
+                    // Если гость отстал от хоста (гость лагает)
+                    else if (timeDiff < -3) {
+                        window.isRemoteCommand = true;
+                        window.player.currentTime = data.time; // Прыгаем вперед
+                        setTimeout(() => { window.isRemoteCommand = false; }, 600);
+                    }
+                    break;
+                case 'apply_room_settings':
+                    window.userSettings.autoSkip = data.autoSkip; // Перезаписываем настройку комнаты
+                    if (typeof showToast === 'function') {
+                        showToast(data.autoSkip ? 'Автопропуск включен хостом' : 'Автопропуск выключен', 'info');
+                    }
+                    break;
+                case 'play':
+                    window.player.play().catch(() => {
+                        // Если хост нажал Play, а гость еще не кликал по сайту
+                        window.player.muted = true;
+                        window.player.play();
+                        showUnmuteOverlay();
+                    });
+                    break;
+                case 'pause':
+                    window.player.pause();
+                    break;
+                case 'seek':
+                    window.player.currentTime = data.time;
+                    if (window.isInitializing) {
+                        console.log("Первичная синхронизация завершена. Управление разрешено.");
+                        setTimeout(() => { window.isInitializing = false; }, 1000);
+                    }
+                    break;
+                case 'change_episode':
+                    // Находим кнопку нужной серии и имитируем клик
+                    const epBtn = document.querySelector(`.ep-row[data-id="${data.episode_id}"]`);
+                    if (epBtn && !epBtn.classList.contains('active')) {
+                        showToast(`Хост переключил на ${data.ordinal} серию`, 'info');
+                        window.isInitializing = true;
+                        epBtn.click();
+                    }
+                    break;
+                case 'buffer_start':
+                    bufferingUsers.add(data.user);
+                    window.player.pause(); // Ставим на паузу у всех
+                    updateBufferStatus();
+                    break;
+
+                case 'buffer_end':
+                    bufferingUsers.delete(data.user);
+                    updateBufferStatus();
+                    // Если больше никто не лагает — пробуем запуститься
+                    if (bufferingUsers.size === 0) {
+                        window.player.play();
+                        if (typeof showToast === 'function') showToast('Все готовы, продолжаем!', 'success');
+                    }
+                    break;
+            }
+
+            setTimeout(() => { window.isRemoteCommand = false; }, 600);
+        }
+        function updateBufferStatus() {
+            const statusText = document.getElementById('party-status-text');
+            if (bufferingUsers.size > 0) {
+                const users = Array.from(bufferingUsers).join(', ');
+                statusText.innerHTML = `⚠️ Ожидание прогрузки: <span class="text-warning">${users}</span>`;
+            } else {
+                statusText.textContent = 'Все синхронизированы';
+            }
+        }
         // Эти функции нужно оставить снаружи initDetail, так как они вызываются по onclick из HTML
         // Но внутри они делают AJAX запросы, которые не зависят от состояния DOM, так что все ок.
         function changeStatus(select, animeSlug) {
@@ -640,7 +996,56 @@
         // Если переход через Swup - плагин ScriptPlugin просто выполнит этот код.
         initDetail();
 
+        // Обработка переходов Swup
+        document.addEventListener('swup:willReplaceContent', () => {
+            if (window.player) {
+                window.player.destroy();
+                window.player = null;
+            }
+            if (window.hls) {
+                window.hls.destroy();
+                window.hls = null;
+            }
+            if (window.heartbeatInterval) {
+                clearInterval(window.heartbeatInterval);
+            }
+        });
+
+        // Функции UI
+        function updatePartyUI(isActive, roomName = '') {
+            const btnText = document.getElementById('party-btn-text');
+            const btnIcon = document.getElementById('party-btn-icon');
+            const copyBtn = document.getElementById('btn-copy-link');
+            const statusText = document.getElementById('party-status-text');
+            const membersArea = document.getElementById('party-members-area');
+
+            if (isActive) {
+                btnText.textContent = 'Покинуть комнату';
+                btnIcon.textContent = '🚪';
+                copyBtn.style.display = 'inline-flex';
+                statusText.textContent = 'Вы в комнате. Поделитесь ссылкой с друзьями!';
+                membersArea.style.display = 'block';
+                if (roomName) {
+                    window.currentRoomLink = window.location.origin + window.location.pathname + '?room=' + roomName;
+                }
+            } else {
+                btnText.textContent = 'Создать комнату';
+                btnIcon.textContent = '✨';
+                copyBtn.style.display = 'none';
+                statusText.textContent = 'Создайте комнату, чтобы смотреть вместе с друзьями';
+                membersArea.style.display = 'none';
+            }
+        }
+
+        function copyLink() {
+            const link = window.currentRoomLink || window.location.href;
+            navigator.clipboard.writeText(link).then(() => {
+                showToast('Ссылка скопирована!', 'success');
+            });
+        }
+    }
     </script>
+
     <script>
         /* === ЛОГИКА КАСТОМНОГО СЕЛЕКТА === */
 
@@ -737,9 +1142,6 @@
 
         // 🔥 Инициализация иконок при загрузке страницы (чтобы заменить эмодзи из HTML на SVG)
         document.addEventListener('DOMContentLoaded', () => {
-            // Берем текущий статус из Django переменной, которая рендерилась в HTML
-            // Но так как у нас в HTML там эмодзи, проще вызвать updateDropdownUI с кодом статуса
-            // Лучший способ: передать статус в data-атрибут
             const currentStatus = "{{ user_status|default:'none' }}";
             updateDropdownUI(currentStatus);
         });

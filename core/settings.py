@@ -34,13 +34,14 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = ["*"]
 
-# CSRF_TRUSTED_ORIGINS = [
-#     "https://*.ngrok-free.app",
-# ]
+CSRF_TRUSTED_ORIGINS = [
+    "https://*.ngrok-free.app",
+]
 
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     "import_export",
     "unfold",
     "unfold.contrib.import_export",
@@ -53,7 +54,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "log_viewer",
-    "myanime.apps.MyanimeConfig"
+    "myanime.apps.MyanimeConfig",
+    "core",
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -84,7 +87,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "core.wsgi.application"
-
+ASGI_APPLICATION = 'core.asgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
@@ -233,6 +236,12 @@ LOGGING = {
             'level': 'INFO',
             'propagate': True,
         },
+    },
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
     },
 }
 

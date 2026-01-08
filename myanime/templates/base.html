@@ -165,8 +165,8 @@
         // --- Глобальные функции (Тосты, Поиск, Тема) ---
         // Они должны быть доступны всегда, поэтому определяем их вне Swup
 
-        const themeBtn = document.getElementById('themeBtn');
-        const body = document.body;
+        window.themeBtn = document.getElementById('themeBtn');
+        var body = document.body;
 
         // Логика темы
         function initTheme() {
@@ -374,7 +374,7 @@
                 navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW failed:', err));
             }
         });
-        let lastScrollY = window.scrollY;
+        window.lastScrollY = window.scrollY || 0;
         const bottomNav = document.querySelector('.mobile-bottom-nav');
 
         window.addEventListener('scroll', () => {
