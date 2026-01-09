@@ -278,6 +278,32 @@
 
     <script>
     {
+        window.detailCleanup = () => {
+            if (window.player) {
+                window.player.destroy();
+                window.player = null;
+            }
+            if (window.hls) {
+                window.hls.destroy();
+                window.hls = null;
+            }
+            if (window.heartbeatInterval) {
+                clearInterval(window.heartbeatInterval);
+                window.heartbeatInterval = null;
+            }
+            if (window.saveInterval) {
+                clearInterval(window.saveInterval);
+                window.saveInterval = null;
+            }
+            if (window._animeKeyHandler) {
+                document.removeEventListener('keydown', window._animeKeyHandler);
+            }
+            // Закрываем сокет, если мы уходим со страницы аниме
+            if (window.partySocket) {
+                window.partySocket.close();
+                window.partySocket = null;
+            }
+        };
         window.bufferingUsers = window.bufferingUsers || new Set();
         window.partySocket = window.partySocket || null;
         window.isRemoteCommand = false;
@@ -290,6 +316,11 @@
         };
         // Оборачиваем всю логику в функцию initDetail
         function initDetail() {
+            window.detailCleanup();
+            const currentStatus = "{{ user_status|default:'none' }}";
+            if (typeof updateDropdownUI === 'function') {
+                updateDropdownUI(currentStatus);
+            }
             if (window.bufferingUsers) {
                 window.bufferingUsers.clear(); // Очищаем список при инициализации новой страницы
             }
@@ -941,28 +972,6 @@
                 statusText.textContent = 'Все синхронизированы';
             }
         }
-        // Эти функции нужно оставить снаружи initDetail, так как они вызываются по onclick из HTML
-        // Но внутри они делают AJAX запросы, которые не зависят от состояния DOM, так что все ок.
-        function changeStatus(select, animeSlug) {
-            const status = select.value;
-            select.style.borderColor = 'var(--text-sec)';
-            fetch('/api/update-status/', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
-                body: JSON.stringify({ anime_slug: animeSlug, status: status })
-            })
-            .then(r => r.json()).then(d => {
-                if (d.status === 'updated') {
-                    select.style.background = '#10b981'; select.style.color='#fff';
-                    setTimeout(() => { select.style.background = 'var(--surface)'; select.style.color='var(--text-main)'; }, 1500);
-                    if (typeof showToast === 'function') showToast('Статус обновлен!', 'success');
-                }
-                else if (d.status === 'removed') {
-                    select.value = 'none';
-                    if (typeof showToast === 'function') showToast('Удалено из списка', 'success');
-                }
-            }).catch(e => { console.error(e); if (typeof showToast === 'function') showToast('Ошибка обновления', 'error'); });
-        }
 
         function toggleSubscription(animeSlug) {
             const btn = document.getElementById('subBtn');
@@ -997,19 +1006,13 @@
         initDetail();
 
         // Обработка переходов Swup
-        document.addEventListener('swup:willReplaceContent', () => {
-            if (window.player) {
-                window.player.destroy();
-                window.player = null;
-            }
-            if (window.hls) {
-                window.hls.destroy();
-                window.hls = null;
-            }
-            if (window.heartbeatInterval) {
-                clearInterval(window.heartbeatInterval);
-            }
-        });
+        if (!window.swupEventsBound) {
+            // Мы вызываем именно window.detailCleanup(), чтобы всегда подтягивать актуальный код
+            document.addEventListener('swup:willReplaceContent', () => {
+                if (window.detailCleanup) window.detailCleanup();
+            });
+            window.swupEventsBound = true;
+        }
 
         // Функции UI
         function updatePartyUI(isActive, roomName = '') {
@@ -1070,10 +1073,8 @@
         function selectStatus(statusValue, animeSlug) {
             // Закрываем меню
             toggleDropdown();
-
             // Обновляем UI мгновенно (для отзывчивости)
             updateDropdownUI(statusValue);
-
             // Отправляем запрос на сервер
             sendUpdateToServer(statusValue, animeSlug);
         }
@@ -1114,10 +1115,8 @@
         // 5. Отправка на сервер (адаптированная ваша функция changeStatus)
         function sendUpdateToServer(status, animeSlug) {
             const btn = document.querySelector('.dropdown-trigger');
-
             // Анимация загрузки (опционально)
             btn.style.opacity = '0.7';
-
             fetch('/api/update-status/', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
