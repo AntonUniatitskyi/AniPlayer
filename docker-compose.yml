@@ -10,6 +10,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    env_file:
+      - .env
     volumes:
       - db-data:/var/lib/postgresql
   backend:
