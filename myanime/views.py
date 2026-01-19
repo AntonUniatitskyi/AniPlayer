@@ -2,7 +2,7 @@ import json
 
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
-from django.db.models import Q
+from django.db.models import Q, Count, Sum
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse_lazy
@@ -10,12 +10,14 @@ from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView
 from django.contrib import messages
 import requests
+from django.core.cache import cache
 from .forms import ProfileUpdateForm, UserUpdateForm
 from decouple import config
 from django.db.models import Count
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models.functions import ExtractHour
 
-from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile, Subscription
+from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile, Subscription, WatchLog
 
 # Create your views here.
 
@@ -186,7 +188,6 @@ class AnimeTitleDetailView(DetailView):
 
         if self.request.user.is_authenticated:
             try:
-                from .models import UserAnimeList
                 user_list = UserAnimeList.objects.get(
                     user=self.request.user,
                     anime=self.object
@@ -276,17 +277,38 @@ def save_progress(request):
         try:
             data = json.loads(request.body)
             episode_id = data.get('episode_id')
-            time = data.get('time')
+            current_time = data.get('time')  # Время с плеера
 
-            if not episode_id or time is None:
+            if not episode_id or current_time is None:
                 return JsonResponse({'status': 'error', 'message': 'Missing data'}, status=400)
 
-            episode = Episode.objects.get(id=episode_id)
-            history, created = EpisodeHistory.objects.update_or_create(
+            episode = Episode.objects.select_related('anime').get(id=episode_id)
+
+            # 1. Сначала просто ищем запись в истории
+            history, created = EpisodeHistory.objects.get_or_create(
                 user=request.user,
                 episode=episode,
-                defaults={'timestamp': time}
+                defaults={'timestamp': current_time}
             )
+
+            if not created:
+                # 2. Если запись была, считаем разницу между "сейчас" и "тем что в базе"
+                last_time = history.timestamp
+                diff = current_time - last_time
+
+                # 3. Логируем просмотр, только если разница положительная и небольшая
+                # (чтобы не засчитывать перемотку или если вкладка была долго открыта)
+                if 0 < diff < 300:
+                    WatchLog.objects.create(
+                        user=request.user,
+                        anime=episode.anime,
+                        episode_number=episode.ordinal,
+                        seconds_watched=diff
+                    )
+
+                # 4. Обновляем время в истории
+                history.timestamp = current_time
+                history.save()
 
             return JsonResponse({'status': 'ok'})
         except Episode.DoesNotExist:
@@ -342,3 +364,94 @@ def finish_telegram_auth(request, token, chat_id):
         messages.error(request, 'Ошибка привязки: неверный токен.')
 
     return redirect('settings')
+
+def user_wrapped_view(request):
+    return render(request, 'wrapped.html')
+
+# 2. API (Считает тяжелую статистику)
+@login_required
+def wrapped_data_api(request):
+    user = request.user
+    cache_key = f'wrapped_stats_{user.id}'
+
+    user_logs = WatchLog.objects.filter(user=user)
+
+    # ПРОВЕРКА В КОНСОЛИ
+    print(f"--- DEBUG FOR {user.username} ---")
+    print(f"Количество записей в логе: {user_logs.count()}")
+
+    if user_logs.count() == 0:
+        return JsonResponse({'error': 'No data found'}, status=404)
+
+    # Пытаемся достать готовый JSON из кэша
+    data = cache.get(cache_key)
+
+    if not data:
+        print(f"⚡ Пересчет статистики для {user.username}...")
+
+        # --- А. Общее время ---
+        total_seconds = WatchLog.objects.filter(user=user)\
+            .aggregate(Sum('seconds_watched'))['seconds_watched__sum'] or 0
+        total_hours = round(total_seconds / 3600, 1)
+        total_days = round(total_hours / 24, 1)
+
+        # --- Б. Активность по часам (Заполняем все 24 часа) ---
+        # Получаем данные из БД (только те часы, где есть просмотры)
+        hours_qs = WatchLog.objects.filter(user=user)\
+            .annotate(hour=ExtractHour('timestamp'))\
+            .values('hour')\
+            .annotate(count=Count('id'))\
+            .order_by('hour')
+
+        # Превращаем в словарь {0: 0, 1: 5, ... 23: 0}
+        hours_dict = {h: 0 for h in range(24)}
+        for entry in hours_qs:
+            hours_dict[entry['hour']] = entry['count']
+
+        chart_hours_labels = [f"{h:02d}:00" for h in range(24)]
+        chart_hours_data = list(hours_dict.values())
+
+        # Определяем "Сову" (если активность с 23 до 04 больше, чем днем)
+        night_activity = sum([hours_dict[h] for h in [23, 0, 1, 2, 3, 4]])
+        day_activity = sum(chart_hours_data) - night_activity
+        is_owl = night_activity > (day_activity * 0.3) # Если ночью > 30% активности
+
+        # --- В. Топ Жанров ---
+        genres_qs = WatchLog.objects.filter(user=user)\
+            .values('anime__genres__name')\
+            .annotate(total=Count('id'))\
+            .order_by('-total')[:5]
+
+        chart_genres_labels = [item['anime__genres__name'] for item in genres_qs]
+        chart_genres_data = [item['total'] for item in genres_qs]
+
+        # --- Г. Любимое аниме (по количеству записей) ---
+        top_anime_qs = WatchLog.objects.filter(user=user)\
+            .values('anime__name_ru', 'anime__poster_path')\
+            .annotate(total=Count('id'))\
+            .order_by('-total').first()
+
+        top_anime_title = top_anime_qs['anime__name_ru'] if top_anime_qs else "Пока пусто"
+        top_anime_poster = top_anime_qs['anime__poster_path'] if top_anime_qs else ""
+
+        # Формируем итоговый словарь
+        data = {
+            'total_hours': total_hours,
+            'total_days': total_days,
+            'is_owl': is_owl,
+            'top_anime_title': top_anime_title,
+            'top_anime_poster': top_anime_poster,
+
+            # Данные для графиков
+            'chart_hours_labels': chart_hours_labels,
+            'chart_hours_data': chart_hours_data,
+            'chart_genres_labels': chart_genres_labels,
+            'chart_genres_data': chart_genres_data,
+        }
+
+        # Сохраняем в кэш на 24 часа
+        cache.set(cache_key, data, 86400)
+    else:
+        print("🚀 Отдал данные из кэша (API)")
+
+    return JsonResponse(data)

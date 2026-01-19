@@ -1,7 +1,8 @@
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 import requests
-from .models import Episode, Subscription
+from django.core.cache import cache
+from .models import Episode, Subscription, WatchLog
 from decouple import config
 
 @receiver(post_save, sender=Episode)
@@ -53,3 +54,8 @@ def notify_subscribers(sender, instance, created, **kwargs):
                     print(f"--- ОШИБКА ОТПРАВКИ: {e} ---")
             else:
                 print("--- У ЮЗЕРА НЕТ TELEGRAM ID ---")
+
+@receiver(post_save, sender=WatchLog)
+def clear_user_cache(sender, instance, **kwargs):
+    cache_key = f'wrapped_stats_{instance.user.id}'
+    cache.delete(cache_key)

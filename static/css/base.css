@@ -53,7 +53,7 @@ body.light-theme {
     --grad-end: rgba(139, 92, 246, 0.4);
 }
 body[data-accent="orange"] {
-    --primary: #ff3d00;
+    --primary: #ff5845;
     --primary-glow: rgba(255, 61, 0, 0.5);
     --grad-start: rgba(255, 240, 230, 0.2);
     --grad-end: rgba(255, 61, 0, 0.5);
@@ -412,4 +412,38 @@ body {
 /* Класс, который мы добавим через JS */
 body.loaded {
     opacity: 1;
+}
+
+.nav-btn-wrapped {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    color: var(--text-main);
+    transition: all 0.3s ease;
+    /* Легкий градиентный фон */
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(255, 61, 0, 0.1));
+    border: 1px solid var(--border);
+}
+
+.nav-btn-wrapped:hover {
+    transform: scale(1.1);
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 15px var(--primary-glow);
+}
+
+/* Красная точка (как уведомление) */
+.wrapped-dot {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    background: #ff3d00;
+    border-radius: 50%;
+    box-shadow: 0 0 5px #ff3d00;
 }

@@ -24,6 +24,7 @@ class Genre(models.Model):
         verbose_name = "Жанр"
         verbose_name_plural = "Жанры"
 
+
 class AnimeTitle(models.Model):
     anilibria_id = models.IntegerField(
         unique=True, verbose_name="Anilibria ID")
@@ -170,3 +171,20 @@ class Subscription(models.Model):
 
     def __str__(self):
         return f"{self.user.username} -> {self.anime.name_ru}"
+
+class WatchLog(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='watch_logs')
+    # Связываем напрямую с твоей моделью AnimeTitle
+    anime = models.ForeignKey(AnimeTitle, on_delete=models.CASCADE, related_name='watch_logs')
+
+    episode_number = models.IntegerField(verbose_name="Номер эпизода")
+    timestamp = models.DateTimeField(default=timezone.now, verbose_name="Время просмотра")
+    seconds_watched = models.IntegerField(default=0, verbose_name="Просмотрено секунд")
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "Лог просмотра"
+        verbose_name_plural = "Логи просмотров"
+
+    def __str__(self):
+        return f"{self.user} -> {self.anime.name_ru} (Эп. {self.episode_number})"

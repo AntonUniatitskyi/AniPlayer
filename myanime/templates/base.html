@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=0">
     {% load static %}
     <link rel="icon" type="image/png" href="{% static 'img/favicon.ico' %}?v=2">
-    <title>{% block title %}AniParser 🚀{% endblock %}</title>
+    <title>{% block title %}AniParser{% endblock %}</title>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,6 +21,8 @@
     <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.1/cropper.min.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
     <link rel="stylesheet" href="{% static 'css/base.css' %}">
 </head>
 
@@ -103,6 +105,14 @@
             </div>
 
             <div class="nav-actions">
+                <a href="{% url 'wrapped' %}" class="nav-btn-wrapped" title="Моя статистика года">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M18 20V10"></path>
+                        <path d="M12 20V4"></path>
+                        <path d="M6 20v-6"></path>
+                    </svg>
+                    <span class="wrapped-dot"></span>
+                </a>
                 <button class="theme-toggle" id="themeBtn" title="Сменить тему">
                     <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -160,6 +170,9 @@
     <script src="https://unpkg.com/swup@4"></script>
     <script src="https://unpkg.com/@swup/scripts-plugin@2"></script>
     <script src="https://unpkg.com/@swup/forms-plugin@3"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
         // --- Глобальные функции (Тосты, Поиск, Тема) ---
@@ -248,30 +261,14 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        // --- НАСТРОЙКА SWUP (БЕСШОВНЫЕ ПЕРЕХОДЫ) ---
-        const swup = new Swup({
-            containers: ["#swup"], // Что обновлять (ID вашего main)
-            cache: true,           // Кэшировать для скорости
-            animationSelector: '[class*="transition-fade"]',
-
-            // 🔥 ВАЖНО: Подключаем плагин для скриптов
-            plugins: [
-                new SwupScriptsPlugin({
-                    head: true, // Перезагружать скрипты в <head>
-                    body: true  // Перезагружать скрипты в <body> (это то, что вам нужно)
-                }),
-                new SwupFormsPlugin({
-                    // Захватываем ВСЕ формы, КРОМЕ тех, у которых есть атрибут data-no-swup
-                    formSelector: 'form:not([data-no-swup])'
-                })
-            ]
-        });
-
         // Функция, которая запускается КАЖДЫЙ РАЗ при заходе на страницу
         function initGlobalScripts() {
             window.scrollTo(0, 0); // Скролл наверх
             updateActiveMenu();    // Обновить активную кнопку внизу
             initDesktopSearch();   // Перезапустить десктопный поиск
+            if (typeof window.initWrapped === 'function') {
+                window.initWrapped();
+            }
         }
 
         // Обновление активного пункта в нижнем меню
@@ -345,23 +342,48 @@
             }
         }
 
-        // ХУК: Перед заменой контента (уходим со страницы)
-        swup.hooks.before('content:replace', () => {
-            // Если играет видео (Plyr), убиваем его, чтобы звук не остался висеть
-            if (window.player && typeof window.player.destroy === 'function') {
-                window.player.destroy();
-                window.player = null;
-            }
+        if (!window.swup) {
+            // --- НАСТРОЙКА SWUP (БЕСШОВНЫЕ ПЕРЕХОДЫ) ---
+            window.swup = new Swup({
+                containers: ["#swup"], // Что обновлять (ID вашего main)
+                cache: true,           // Кэшировать для скорости
+                animationSelector: '[class*="transition-fade"]',
 
-            // Скрываем мобильный поиск, если он был открыт
-            const panel = document.getElementById('mobileSearchPanel');
-            if(panel) panel.classList.remove('active');
-        });
+                // 🔥 ВАЖНО: Подключаем плагин для скриптов
+                plugins: [
+                    new SwupScriptsPlugin({
+                        head: true, // Перезагружать скрипты в <head>
+                        body: true  // Перезагружать скрипты в <body> (это то, что вам нужно)
+                    }),
+                    new SwupFormsPlugin({
+                        // Захватываем ВСЕ формы, КРОМЕ тех, у которых есть атрибут data-no-swup
+                        formSelector: 'form:not([data-no-swup])'
+                    })
+                ]
+            });
 
-        // ХУК: После того как новый контент появился
-        swup.hooks.on('content:replace', () => {
-            initGlobalScripts();
-        });
+
+
+
+            // ХУК: Перед заменой контента (уходим со страницы)
+            window.swup.hooks.before('content:replace', () => {
+                // Если играет видео (Plyr), убиваем его, чтобы звук не остался висеть
+                if (window.player && typeof window.player.destroy === 'function') {
+                    window.player.destroy();
+                    window.player = null;
+                }
+                document.body.classList.remove('wrapped-mode');
+
+                // Скрываем мобильный поиск, если он был открыт
+                const panel = document.getElementById('mobileSearchPanel');
+                if(panel) panel.classList.remove('active');
+            });
+
+            // ХУК: После того как новый контент появился
+            window.swup.hooks.on('content:replace', () => {
+                initGlobalScripts();
+            });
+        }
 
         // Запуск при самой первой загрузке сайта
         document.addEventListener('DOMContentLoaded', () => {

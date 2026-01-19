@@ -278,14 +278,17 @@
 
     <script>
     {
+        window.mainPlayer = null;
+        window.hlsInstance = null;
         window.detailCleanup = () => {
-            if (window.player) {
-                window.player.destroy();
-                window.player = null;
+            if (window.mainPlayer && typeof window.mainPlayer.destroy === 'function') {
+                console.log("Уничтожаем старый плеер...");
+                window.mainPlayer.destroy();
+                window.mainPlayer = null;
             }
-            if (window.hls) {
-                window.hls.destroy();
-                window.hls = null;
+            if (window.hlsInstance) {
+                window.hlsInstance.destroy();
+                window.hlsInstance = null;
             }
             if (window.heartbeatInterval) {
                 clearInterval(window.heartbeatInterval);
@@ -324,10 +327,10 @@
             if (window.bufferingUsers) {
                 window.bufferingUsers.clear(); // Очищаем список при инициализации новой страницы
             }
-            if (window.player && typeof window.player.destroy === 'function') {
+            if (window.mainPlayer && typeof window.mainPlayer.destroy === 'function') {
                 console.log("Уничтожаем старый плеер...");
-                window.player.destroy();
-                window.player = null;
+                window.mainPlayer.destroy();
+                window.mainPlayer = null;
             }
             if (window.hls) {
                 console.log("Останавливаем старый поток HLS...");
@@ -373,7 +376,7 @@
             // Глобальные переменные для плеера
             window.hls = null;
             // Сохраняем плеер в window, чтобы Swup мог его уничтожить при уходе
-            window.player = null;
+            window.mainPlayer = null;
 
             let currentBtn = null;
             let opStart = 0, opEnd = 0, edStart = 0, edEnd = 0;
@@ -398,12 +401,12 @@
             };
 
             function initPlayer() {
-                window.player = new Plyr(videoElement, defaultOptions);
+                window.mainPlayer = new Plyr(videoElement, defaultOptions);
                 window.isRemoteCommand = false;
 
                 const events = ['play', 'pause', 'seeked'];
                 events.forEach(eventName => {
-                    window.player.on(eventName, () => {
+                    window.mainPlayer.on(eventName, () => {
                         if (window.isRemoteCommand || window.isInitializing) return; // Игнорируем, если это пришло из сокета
 
                         // Отправляем событие в комнату через твой WebSocket (объект partySocket)
@@ -411,15 +414,15 @@
                             window.partySocket.send(JSON.stringify({
                                 'type': 'player_sync',
                                 'action': eventName,
-                                'time': window.player.currentTime
+                                'time': window.mainPlayer.currentTime
                             }));
                         }
                     });
                 });
 
                 const skipContainer = document.querySelector('.skip-buttons-container');
-                if (skipContainer && window.player.elements.container) {
-                    window.player.elements.container.appendChild(skipContainer);
+                if (skipContainer && window.mainPlayer.elements.container) {
+                    window.mainPlayer.elements.container.appendChild(skipContainer);
                 }
 
                 if (window._animeKeyHandler) {
@@ -427,7 +430,7 @@
                 }
 
                 // Событие: плеер встал из-за нехватки данных
-                window.player.on('waiting', () => {
+                window.mainPlayer.on('waiting', () => {
                     if (window.partySocket && !window.isRemoteCommand) {
                         // Уведомляем комнату, что мы "встали"
                         window.partySocket.send(JSON.stringify({
@@ -438,7 +441,7 @@
                 });
 
                 // Событие: плеер прогрузился и готов играть
-                window.player.on('canplay', () => {
+                window.mainPlayer.on('canplay', () => {
                     if (window.partySocket && !window.isRemoteCommand) {
                         window.partySocket.send(JSON.stringify({
                             'action': 'buffer_end',
@@ -450,14 +453,14 @@
                 if (window.location.search.includes(`_{{ user.id }}`)) {
                     if (window.heartbeatInterval) clearInterval(window.heartbeatInterval);
                     window.heartbeatInterval = setInterval(() => {
-                        if (window.partySocket?.readyState === WebSocket.OPEN && !window.player.paused) {
-                            window.partySocket.send(JSON.stringify({ 'action': 'heartbeat', 'time': window.player.currentTime }));
+                        if (window.partySocket?.readyState === WebSocket.OPEN && !window.mainPlayer.paused) {
+                            window.partySocket.send(JSON.stringify({ 'action': 'heartbeat', 'time': window.mainPlayer.currentTime }));
                         }
                     }, 5000);
                 }
 
                 window._animeKeyHandler = function(e) {
-                    if (!window.player) return;
+                    if (!window.mainPlayer) return;
 
                     const activeTag = document.activeElement ? document.activeElement.tagName.toUpperCase() : '';
                     if (activeTag === 'INPUT' || activeTag === 'TEXTAREA' || activeTag === 'SELECT') return;
@@ -465,44 +468,44 @@
 
                     if (code === 'Space' || code === 'KeyK') {
                         e.preventDefault(); // ОТМЕНЯЕМ СКРОЛЛ И НАЖАТИЕ КНОПОК
-                        window.player.togglePlay();
+                        window.mainPlayer.togglePlay();
                     }
 
                     else if (code === 'ArrowLeft' || code === 'KeyJ') {
                         e.preventDefault();
-                        window.player.rewind(10);
+                        window.mainPlayer.rewind(10);
                     }
 
                     else if (code === 'ArrowRight' || code === 'KeyL') {
                         e.preventDefault();
-                        window.player.forward(10);
+                        window.mainPlayer.forward(10);
                     }
 
                     else if (code === 'ArrowUp') {
                         e.preventDefault();
-                        window.player.increaseVolume(0.1);
+                        window.mainPlayer.increaseVolume(0.1);
                     }
 
                     else if (code === 'ArrowDown') {
                         e.preventDefault();
-                        window.player.decreaseVolume(0.1);
+                        window.mainPlayer.decreaseVolume(0.1);
                     }
 
                     else if (code === 'KeyF') {
                         e.preventDefault();
-                        window.player.fullscreen.toggle();
+                        window.mainPlayer.fullscreen.toggle();
                     }
 
                     else if (code === 'KeyM') {
                         e.preventDefault();
-                        window.player.muted = !window.player.muted;
+                        window.mainPlayer.muted = !window.mainPlayer.muted;
                     }
                 };
 
                 document.addEventListener('keydown', window._animeKeyHandler);
 
-                window.player.on('timeupdate', () => {
-                    const t = window.player.currentTime;
+                window.mainPlayer.on('timeupdate', () => {
+                    const t = window.mainPlayer.currentTime;
                     if (opStart > 0 && opEnd > 0 && t >= opStart && t < opEnd) skipOpBtn.style.display = 'flex';
                     else skipOpBtn.style.display = 'none';
                     if (edStart > 0 && edEnd > 0 && t >= edStart && t < edEnd) skipEdBtn.style.display = 'flex';
@@ -510,14 +513,14 @@
 
                     if (userSettings.autoSkip && opStart > 0 && opEnd > 0) {
                         if (t >= opStart && t < opEnd) {
-                            window.player.currentTime = opEnd;
+                            window.mainPlayer.currentTime = opEnd;
                             if(typeof showToast === 'function') showToast('Опенинг пропущен', 'success');
                         }
                     }
                 });
-                window.player.on('playing', () => { if (!saveInterval) saveInterval = setInterval(saveProgress, 10000); });
-                window.player.on('pause', () => { saveProgress(); clearInterval(saveInterval); saveInterval = null; });
-                window.player.on('ended', () => {
+                window.mainPlayer.on('playing', () => { if (!saveInterval) saveInterval = setInterval(saveProgress, 10000); });
+                window.mainPlayer.on('pause', () => { saveProgress(); clearInterval(saveInterval); saveInterval = null; });
+                window.mainPlayer.on('ended', () => {
                     if (userSettings.autoNext) {
                         if (!currentBtn) return;
                         const nextBtn = currentBtn.nextElementSibling;
@@ -533,8 +536,8 @@
             }
 
             function saveProgress() {
-                if (!currentBtn || !window.player) return;
-                const time = Math.floor(window.player.currentTime);
+                if (!currentBtn || !window.mainPlayer) return;
+                const time = Math.floor(window.mainPlayer.currentTime);
                 const epId = currentBtn.getAttribute('data-id');
                 if (time > 5) {
                     fetch('/api/save-progress/', {
@@ -545,8 +548,8 @@
                 }
             }
 
-            if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (window.player) { window.player.currentTime = opEnd; window.player.play(); } });
-            if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (window.player) { window.player.currentTime = edEnd; window.player.play(); } });
+            if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (window.mainPlayer) { window.mainPlayer.currentTime = opEnd; window.mainPlayer.play(); } });
+            if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (window.mainPlayer) { window.mainPlayer.currentTime = edEnd; window.mainPlayer.play(); } });
 
             function updateQuality(newQuality) {
                 currentQuality = newQuality;
@@ -556,25 +559,25 @@
                     if (levelIndex !== -1) { hls.currentLevel = levelIndex; return; }
                 }
                 const url = getUrlForQuality(currentBtn, newQuality);
-                if (url) loadStream(url, window.player.currentTime, window.player.playing);
+                if (url) loadStream(url, window.mainPlayer.currentTime, window.mainPlayer.playing);
             }
 
             function loadStream(url, startTime = 0, autoPlay = false) {
                 if (Hls.isSupported()) {
-                    if (hls) hls.destroy();
-                    hls = new Hls(hlsConfig);
-                    hls.loadSource(url);
-                    hls.attachMedia(videoElement);
-                    hls.on(Hls.Events.MANIFEST_PARSED, () => {
-                        const availableQualities = hls.levels.map(l => l.height);
+                    if (window.hlsInstance) window.hlsInstance.destroy();
+                    window.hlsInstance = new Hls(hlsConfig);
+                    window.hlsInstance.loadSource(url);
+                    window.hlsInstance.attachMedia(videoElement);
+                    window.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                        const availableQualities = window.hlsInstance.levels.map(l => l.height);
                         if (availableQualities.length > 1) {
                             availableQualities.sort((a, b) => b - a);
-                            window.player.config.quality.options = availableQualities;
+                            window.mainPlayer.config.quality.options = availableQualities;
                         }
                         if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) window.player.play().catch(() => {
-                            window.player.muted = true;
-                            window.player.play();
+                        if (autoPlay) window.mainPlayer.play().catch(() => {
+                            window.mainPlayer.muted = true;
+                            window.mainPlayer.play();
                             showUnmuteOverlay();
                         });
                     });
@@ -591,7 +594,7 @@
                     videoElement.src = url;
                     videoElement.addEventListener('loadedmetadata', () => {
                         if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) window.player.play();
+                        if (autoPlay) window.mainPlayer.play();
                     });
                 }
             }
@@ -628,10 +631,10 @@
                 if (btn.getAttribute('data-480')) qualities.push(480);
                 qualities.sort((a, b) => b - a);
 
-                if (!window.player) initPlayer(); // Создаем плеер, если его еще нет
+                if (!window.mainPlayer) initPlayer(); // Создаем плеер, если его еще нет
                 setTimeout(() => {
-                    if (window.player && window.player.elements.container) {
-                        window.player.elements.container.focus();
+                    if (window.mainPlayer && window.mainPlayer.elements.container) {
+                        window.mainPlayer.elements.container.focus();
                     }
                 }, 100);
 
@@ -639,8 +642,8 @@
                 if (!qualities.includes(selectedQuality)) {
                     selectedQuality = qualities[0];
                 }
-                window.player.config.quality.options = qualities;
-                window.player.config.quality.default = selectedQuality;
+                window.mainPlayer.config.quality.options = qualities;
+                window.mainPlayer.config.quality.default = selectedQuality;
                 const url = getUrlForQuality(btn, qualities[0]);
                 loadStream(url, 0, true);
             };
@@ -739,10 +742,10 @@
         }
 
         function unmuteAndStart() {
-            if (window.player) {
-                window.player.muted = false;
-                window.player.volume = 0.8;
-                window.player.play();
+            if (window.mainPlayer) {
+                window.mainPlayer.muted = false;
+                window.mainPlayer.volume = 0.8;
+                window.mainPlayer.play();
             }
             document.getElementById('unmute-overlay').style.display = 'none';
             if (typeof showToast === 'function') showToast('Звук включен', 'success');
@@ -859,12 +862,12 @@
                 return;
             }
             if (data.action === 'ask_for_sync') {
-                if (window.player && window.partySocket) {
+                if (window.mainPlayer && window.partySocket) {
                     const activeBtn = document.querySelector('.ep-row.active');
                     window.partySocket.send(JSON.stringify({
                         'action': 'sync_response',
                         'target': data.target,
-                        'time': window.player.currentTime,
+                        'time': window.mainPlayer.currentTime,
                         'episode_id': activeBtn ? activeBtn.getAttribute('data-id') : null
                     }));
                 }
@@ -878,36 +881,36 @@
             }
             if (data.action === 'buffer_start') {
                 bufferingUsers.add(data.user);
-                window.player.pause();
+                window.mainPlayer.pause();
                 updateBufferStatus();
                 return;
             }
             if (data.action === 'buffer_end') {
                 bufferingUsers.delete(data.user);
                 updateBufferStatus();
-                if (bufferingUsers.size === 0) window.player.play();
+                if (bufferingUsers.size === 0) window.mainPlayer.play();
                 return;
             }
-            if (!window.player) return;
+            if (!window.mainPlayer) return;
 
 
             window.isRemoteCommand = true; // Блокируем отправку событий обратно в сокет
 
             switch (data.action) {
                 case 'heartbeat':
-                    if (!window.player) return;
+                    if (!window.mainPlayer) return;
 
-                    const timeDiff = window.player.currentTime - data.time; // Положительное = гость впереди
+                    const timeDiff = window.mainPlayer.currentTime - data.time; // Положительное = гость впереди
 
                     // Если гость убежал вперед хоста больше чем на 2 секунды (хост лагает)
                     if (timeDiff > 2) {
-                        window.player.pause(); // Мягко останавливаем гостя
+                        window.mainPlayer.pause(); // Мягко останавливаем гостя
                         if (typeof showToast === 'function') showToast('Ожидаем хоста...', 'warning');
                     }
                     // Если гость отстал от хоста (гость лагает)
                     else if (timeDiff < -3) {
                         window.isRemoteCommand = true;
-                        window.player.currentTime = data.time; // Прыгаем вперед
+                        window.mainPlayer.currentTime = data.time; // Прыгаем вперед
                         setTimeout(() => { window.isRemoteCommand = false; }, 600);
                     }
                     break;
@@ -918,18 +921,18 @@
                     }
                     break;
                 case 'play':
-                    window.player.play().catch(() => {
+                    window.mainPlayer.play().catch(() => {
                         // Если хост нажал Play, а гость еще не кликал по сайту
-                        window.player.muted = true;
-                        window.player.play();
+                        window.mainPlayer.muted = true;
+                        window.mainPlayer.play();
                         showUnmuteOverlay();
                     });
                     break;
                 case 'pause':
-                    window.player.pause();
+                    window.mainPlayer.pause();
                     break;
                 case 'seek':
-                    window.player.currentTime = data.time;
+                    window.mainPlayer.currentTime = data.time;
                     if (window.isInitializing) {
                         console.log("Первичная синхронизация завершена. Управление разрешено.");
                         setTimeout(() => { window.isInitializing = false; }, 1000);
@@ -946,7 +949,7 @@
                     break;
                 case 'buffer_start':
                     bufferingUsers.add(data.user);
-                    window.player.pause(); // Ставим на паузу у всех
+                    window.mainPlayer.pause(); // Ставим на паузу у всех
                     updateBufferStatus();
                     break;
 
@@ -955,7 +958,7 @@
                     updateBufferStatus();
                     // Если больше никто не лагает — пробуем запуститься
                     if (bufferingUsers.size === 0) {
-                        window.player.play();
+                        window.mainPlayer.play();
                         if (typeof showToast === 'function') showToast('Все готовы, продолжаем!', 'success');
                     }
                     break;

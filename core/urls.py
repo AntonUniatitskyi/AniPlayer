@@ -70,5 +70,7 @@ urlpatterns = [
     path('connect-telegram/done/<str:token>/<str:chat_id>/', views.finish_telegram_auth, name='finish_telegram_auth'),
     path('api/subscribe/', views.toggle_subscription, name='toggle_subscription'),
     path('sw.js', TemplateView.as_view(template_name='sw.js', content_type='application/javascript'), name='sw.js'),
+    path('wrapped/', views.user_wrapped_view, name='wrapped'),
+    path('api/wrapped-data/', views.wrapped_data_api, name='wrapped_api')
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
