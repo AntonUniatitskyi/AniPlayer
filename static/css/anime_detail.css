@@ -1397,3 +1397,44 @@ body {
     color: #10b981;
     background: rgba(16, 185, 129, 0.1);
 }
+/* Контейнер над плеером */
+.translation-block {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding: 12px 20px;
+    z-index: 500;
+    border-radius: 16px;
+    /* Твой Liquid Glass */
+    background: var(--glass-element-bg);
+    backdrop-filter: blur(15px);
+    border: 1px solid var(--border);
+}
+
+.tr-label {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--text-sec);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Фикс для выпадающего меню внутри секции плеера */
+#translationDropdown .dropdown-menu {
+    max-height: 300px;
+    overflow-y: auto;
+    position: absolute;
+    /* Чтобы не перекрывалось видео-контейнером */
+    z-index: 1001;
+}
+
+/* Стили для скроллбара меню (в стиле Liquid Glass) */
+#translationMenu::-webkit-scrollbar {
+    width: 4px;
+}
+#translationMenu::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 10px;
+}

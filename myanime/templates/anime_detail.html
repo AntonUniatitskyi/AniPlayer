@@ -169,6 +169,20 @@
 
         {% if anime.episodes.exists %}
         <div class="player-section" id="watch">
+            <div class="translation-block glass-panel">
+                <span class="tr-label">Озвучка:</span>
+                <div class="custom-dropdown" id="translationDropdown">
+                    <button type="button" class="dropdown-trigger" onclick="toggleTranslationDropdown()">
+                        <span class="current-status-text" id="activeTranslationText">Загрузка...</span>
+                        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 9l6 6 6-6"/>
+                        </svg>
+                    </button>
+
+                    <div class="dropdown-menu" id="translationMenu">
+                        </div>
+                </div>
+            </div>
             <div class="cinema-container {% if anime.kind == 'MOVIE' %}movie-mode{% endif %}">
                 <div class="video-wrapper">
                     <video id="player" controls crossorigin playsinline></video>
@@ -280,7 +294,21 @@
     {
         window.mainPlayer = null;
         window.hlsInstance = null;
+        window.currentTranslationId = localStorage.getItem('preferred_translation') || '0';
+        window.currentFetchController = null;
+        window.currentTranslationId = localStorage.getItem('preferred_translation') || 'internal';
+        window.pendingQuality = null;
+
+        window._closeTranslationOnClick = (e) => {
+            const dd = document.getElementById('translationDropdown');
+            if (dd && !dd.contains(e.target)) {
+                dd.classList.remove('open');
+            }
+        };
+
         window.detailCleanup = () => {
+            if (window.currentFetchController) window.currentFetchController.abort();
+            document.removeEventListener('click', window._closeTranslationOnClick);
             if (window.mainPlayer && typeof window.mainPlayer.destroy === 'function') {
                 console.log("Уничтожаем старый плеер...");
                 window.mainPlayer.destroy();
@@ -320,6 +348,7 @@
         // Оборачиваем всю логику в функцию initDetail
         function initDetail() {
             window.detailCleanup();
+            document.addEventListener('click', window._closeTranslationOnClick);
             const currentStatus = "{{ user_status|default:'none' }}";
             if (typeof updateDropdownUI === 'function') {
                 updateDropdownUI(currentStatus);
@@ -348,6 +377,12 @@
             // Если плеера на странице нет (например, нет эпизодов), выходим
             if (!videoElement) return;
 
+            window.toggleTranslationDropdown = function() {
+                const dd = document.getElementById('translationDropdown');
+                if (dd) dd.classList.toggle('open');
+            };
+
+            loadTranslations();
             // Данные пользователя (рендерим один раз)
             if (!window.partySocket) {
                 window.userSettings = {
@@ -399,6 +434,81 @@
                 manifestLoadingTimeOut: 20000, fragLoadingTimeOut: 20000, levelLoadingTimeOut: 20000,
                 startLevel: -1
             };
+            async function loadTranslations() {
+                const animeSlug = "{{ anime.code }}";
+                const menu = document.getElementById('translationMenu');
+                const buttonText = document.getElementById('activeTranslationText');
+                if (!menu) return;
+
+                try {
+                    const response = await fetch(`/api/translations/${animeSlug}/`);
+                    const data = await response.json();
+                    menu.innerHTML = '';
+
+                    const createItem = (id, name) => {
+                        const item = document.createElement('div');
+                        item.className = 'dropdown-item';
+                        if (id === window.currentTranslationId) item.classList.add('active');
+
+                        item.onclick = (e) => {
+                            e.stopPropagation();
+                            window.currentTranslationId = id;
+                            localStorage.setItem('preferred_translation', id);
+                            document.querySelectorAll('#translationMenu .dropdown-item').forEach(el => el.classList.remove('active'));
+                            item.classList.add('active');
+                            buttonText.textContent = name;
+                            document.getElementById('translationDropdown').classList.remove('open');
+
+                            // Переключаем озвучку в текущем плеере
+                            const activeBtn = document.querySelector('.ep-row.active');
+                            if (activeBtn) window.selectEpisode(activeBtn, true);
+                        };
+
+                        item.innerHTML = `<span>${name}</span>`;
+                        return item;
+                    };
+
+                    // Добавляем твою базу и Kodik
+                    menu.appendChild(createItem('internal', 'AniLibria (Прямой поток)'));
+                    if (data.translations) {
+                        data.translations.forEach(t => menu.appendChild(createItem(t.id, t.name)));
+                    }
+
+                    // Ставим текст на кнопку
+                    const savedId = localStorage.getItem('preferred_translation') || 'internal';
+                    const items = Array.from(menu.querySelectorAll('.dropdown-item'));
+                    const active = items.find(i => i.onclick.toString().includes(`'${savedId}'`));
+                    buttonText.textContent = active ? active.querySelector('span').textContent : 'AniLibria (Прямой поток)';
+
+                } catch (e) { console.error("Ошибка озвучек:", e); }
+            }
+
+            window.changeTranslation = function(translationId) {
+                window.currentTranslationId = translationId;
+                localStorage.setItem('preferred_translation', translationId);
+
+                // Получаем текущую серию
+                const activeBtn = document.querySelector('.ep-row.active');
+                if (!activeBtn) return;
+
+                const episodeNum = activeBtn.getAttribute('data-ordinal');
+                const animeSlug = "{{ anime.code }}";
+                const currentTime = window.mainPlayer ? window.mainPlayer.currentTime : 0;
+
+                if (typeof showToast === 'function') showToast('Меняем озвучку...', 'info');
+
+                // Запрашиваем новую ссылку
+                fetch(`/api/stream/${animeSlug}/?episode=${episodeNum}&translation=${translationId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.url) {
+                            // Загружаем новый поток, сохраняя время просмотра
+                            loadStream(data.url, currentTime, true);
+                        } else {
+                            if (typeof showToast === 'function') showToast('Видео не найдено для этой озвучки', 'error');
+                        }
+                    });
+            }
 
             function initPlayer() {
                 window.mainPlayer = new Plyr(videoElement, defaultOptions);
@@ -551,51 +661,95 @@
             if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (window.mainPlayer) { window.mainPlayer.currentTime = opEnd; window.mainPlayer.play(); } });
             if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (window.mainPlayer) { window.mainPlayer.currentTime = edEnd; window.mainPlayer.play(); } });
 
+            // Включаем режим отладки в консоли
+            const DBG = (msg, data = "") => console.log(`[AnimeDebug] ${msg}`, data);
+
             function updateQuality(newQuality) {
-                currentQuality = newQuality;
-                if (!hls) return;
-                if (hls.levels && hls.levels.length > 1) {
-                    const levelIndex = hls.levels.findIndex(l => l.height === newQuality);
-                    if (levelIndex !== -1) { hls.currentLevel = levelIndex; return; }
+                if (!window.mainPlayer) return;
+                const q = parseInt(newQuality);
+
+                // Захватываем состояние ПРЯМО СЕЙЧАС
+                const currentTime = window.mainPlayer.currentTime;
+                const isPlaying = !window.mainPlayer.paused;
+                window.pendingQuality = q;
+
+                if (window.currentTranslationId === 'internal') {
+                    const activeBtn = document.querySelector('.ep-row.active');
+                    const newUrl = getUrlForQuality(activeBtn, q);
+                    if (newUrl) loadStream(newUrl, currentTime, isPlaying);
+                } else {
+                    const activeBtn = document.querySelector('.ep-row.active');
+                    if (!activeBtn) return;
+
+                    const epNum = activeBtn.getAttribute('data-ordinal');
+                    fetch(`/api/stream/{{ anime.code }}/?episode=${epNum}&translation=${window.currentTranslationId}&quality=${q}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.url) loadStream(data.url, currentTime, isPlaying);
+                        });
                 }
-                const url = getUrlForQuality(currentBtn, newQuality);
-                if (url) loadStream(url, window.mainPlayer.currentTime, window.mainPlayer.playing);
             }
 
             function loadStream(url, startTime = 0, autoPlay = false) {
+                const videoElement = document.getElementById('player');
+                const isInternal = window.currentTranslationId === 'internal';
+
+                DBG("Запуск loadStream", { url, startTime, autoPlay });
+
                 if (Hls.isSupported()) {
-                    if (window.hlsInstance) window.hlsInstance.destroy();
+                    if (window.hlsInstance) {
+                        window.hlsInstance.destroy();
+                    }
+
                     window.hlsInstance = new Hls(hlsConfig);
                     window.hlsInstance.loadSource(url);
                     window.hlsInstance.attachMedia(videoElement);
-                    window.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-                        const availableQualities = window.hlsInstance.levels.map(l => l.height);
-                        if (availableQualities.length > 1) {
-                            availableQualities.sort((a, b) => b - a);
-                            window.mainPlayer.config.quality.options = availableQualities;
-                        }
-                        if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) window.mainPlayer.play().catch(() => {
-                            window.mainPlayer.muted = true;
-                            window.mainPlayer.play();
-                            showUnmuteOverlay();
-                        });
+
+                    // 1. Настраиваем меню качеств
+                    window.hlsInstance.once(Hls.Events.MANIFEST_PARSED, () => {
+                        let qualities = isInternal ? [1080, 720, 480] : [720, 480, 360];
+                        const currentQ = window.pendingQuality ||
+                                        (window.userSettings ? window.userSettings.defaultQuality : (isInternal ? 1080 : 720));
+
+                        window.mainPlayer.config.quality = {
+                            default: currentQ,
+                            options: qualities,
+                            forced: true,
+                            onChange: (newQ) => updateQuality(newQ)
+                        };
+                        window.mainPlayer.setQuality(currentQ);
                     });
-                    hls.on(Hls.Events.ERROR, function (event, data) {
-                        if (data.fatal) {
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
-                                case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
-                                default: hls.destroy(); break;
-                            }
+
+                    // 2. КРИТИЧЕСКИЙ МОМЕНТ: Ждем готовности метаданных для перемотки
+                    const onMetadataLoaded = () => {
+                        if (startTime > 0) {
+                            DBG(`Восстанавливаем время: ${startTime} сек.`);
+                            videoElement.currentTime = startTime;
                         }
-                    });
+
+                        if (autoPlay) {
+                            // Маленькая задержка перед play, чтобы браузер успел обновить стейт
+                            setTimeout(() => {
+                                window.mainPlayer.play().catch(() => {
+                                    window.mainPlayer.muted = true;
+                                    window.mainPlayer.play();
+                                    if (typeof showUnmuteOverlay === 'function') showUnmuteOverlay();
+                                });
+                            }, 100);
+                        }
+                        // Удаляем слушатель, чтобы он не срабатывал при буферизации
+                        videoElement.removeEventListener('loadedmetadata', onMetadataLoaded);
+                    };
+
+                    videoElement.addEventListener('loadedmetadata', onMetadataLoaded);
+
                 } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Для Safari (iOS/Mac)
                     videoElement.src = url;
                     videoElement.addEventListener('loadedmetadata', () => {
                         if (startTime > 0) videoElement.currentTime = startTime;
                         if (autoPlay) window.mainPlayer.play();
-                    });
+                    }, { once: true });
                 }
             }
 
@@ -608,7 +762,8 @@
             }
 
             // Делаем функцию глобальной, чтобы ее можно было вызывать из HTML (onclick="selectEpisode(...)")
-            window.selectEpisode = function (btn) {
+            window.selectEpisode = function (btn, keepTime = false) {
+                // 1. Уведомляем других участников (Party Mode)
                 if (!window.isRemoteCommand && window.partySocket) {
                     window.partySocket.send(JSON.stringify({
                         'action': 'change_episode',
@@ -616,36 +771,77 @@
                         'ordinal': btn.getAttribute('data-ordinal')
                     }));
                 }
+
+                // 2. UI: Обновляем активную кнопку и фокус
                 btn.blur();
-                currentBtn = btn;
+                currentBtn = btn; // Обновляем глобальную переменную текущей кнопки
                 document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+
+                // Сохраняем текущее время, если нужно (для смены озвучки)
+                const currentTime = (keepTime && window.mainPlayer) ? window.mainPlayer.currentTime : 0;
+
+                // 3. Обновляем тайминги пропусков (берем из атрибутов кнопки)
                 opStart = parseInt(btn.getAttribute('data-op-start')) || 0;
                 opEnd = parseInt(btn.getAttribute('data-op-end')) || 0;
                 edStart = parseInt(btn.getAttribute('data-ed-start')) || 0;
                 edEnd = parseInt(btn.getAttribute('data-ed-end')) || 0;
-                skipOpBtn.style.display = 'none'; skipEdBtn.style.display = 'none';
-                const qualities = [];
-                if (btn.getAttribute('data-1080')) qualities.push(1080);
-                if (btn.getAttribute('data-720')) qualities.push(720);
-                if (btn.getAttribute('data-480')) qualities.push(480);
-                qualities.sort((a, b) => b - a);
 
-                if (!window.mainPlayer) initPlayer(); // Создаем плеер, если его еще нет
+                // Скрываем кнопки пропуска до следующего timeupdate
+                if (skipOpBtn) skipOpBtn.style.display = 'none';
+                if (skipEdBtn) skipEdBtn.style.display = 'none';
+
+                // 4. Инициализируем плеер, если он еще не создан
+                if (!window.mainPlayer) initPlayer();
+
+                // 5. ЛОГИКА ЗАГРУЗКИ ПОТОКА (Hybrid Mode)
+                if (window.currentTranslationId === 'internal') {
+                    // --- ВАРИАНТ А: Твои прямые ссылки (AniLibria) ---
+                    console.log("Загрузка прямого потока из БД");
+
+                    // Пытаемся взять качество по умолчанию, иначе — лучшее доступное
+                    const url = getUrlForQuality(btn, window.userSettings.defaultQuality)
+                            || btn.getAttribute('data-1080')
+                            || btn.getAttribute('data-720')
+                            || btn.getAttribute('data-480');
+
+                    if (url) {
+                        loadStream(url, currentTime, true);
+                    } else {
+                        if (typeof showToast === 'function') showToast('Прямая ссылка не найдена', 'error');
+                    }
+                } else {
+                    // --- ВАРИАНТ Б: Динамическая ссылка (Kodik) ---
+
+                    // Отменяем предыдущий fetch запрос, если он не успел завершиться (AbortController)
+                    if (window.currentFetchController) window.currentFetchController.abort();
+                    window.currentFetchController = new AbortController();
+
+                    const episodeNum = btn.getAttribute('data-ordinal');
+                    const animeSlug = "{{ anime.code }}";
+
+                    fetch(`/api/stream/${animeSlug}/?episode=${episodeNum}&translation=${window.currentTranslationId}`, {
+                        signal: window.currentFetchController.signal
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.url) {
+                            loadStream(data.url, currentTime, true);
+                        } else {
+                            if (typeof showToast === 'function') showToast('Озвучка недоступна', 'error');
+                        }
+                    })
+                    .catch(err => {
+                        if (err.name !== 'AbortError') console.error("Ошибка API Kodik:", err);
+                    });
+                }
+
+                // 6. Возвращаем фокус на плеер для управления с клавиатуры
                 setTimeout(() => {
                     if (window.mainPlayer && window.mainPlayer.elements.container) {
                         window.mainPlayer.elements.container.focus();
                     }
                 }, 100);
-
-                let selectedQuality = currentQuality;
-                if (!qualities.includes(selectedQuality)) {
-                    selectedQuality = qualities[0];
-                }
-                window.mainPlayer.config.quality.options = qualities;
-                window.mainPlayer.config.quality.default = selectedQuality;
-                const url = getUrlForQuality(btn, qualities[0]);
-                loadStream(url, 0, true);
             };
 
             const allEpBtns = Array.from(document.querySelectorAll('.ep-row'));

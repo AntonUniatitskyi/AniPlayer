@@ -4,9 +4,9 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import UserCreationForm
 from django.db.models import Q, Count, Sum
 from django.http import JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_GET
 from django.views.generic import CreateView, DetailView, ListView
 from django.contrib import messages
 import requests
@@ -16,6 +16,7 @@ from decouple import config
 from django.db.models import Count
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models.functions import ExtractHour
+from anime_parsers_ru import KodikParser
 
 from .models import AnimeTitle, Episode, EpisodeHistory, UserAnimeList, Profile, Subscription, WatchLog
 
@@ -455,3 +456,68 @@ def wrapped_data_api(request):
         print("🚀 Отдал данные из кэша (API)")
 
     return JsonResponse(data)
+
+
+kodik_parser = KodikParser(validate_token=False)
+@require_GET
+def kodik_link(request, slug):
+    try:
+        anime = get_object_or_404(AnimeTitle, code=slug)
+        episode_num = request.GET.get('episode', 1)
+        translation_id = request.GET.get('translation', '0')
+        # Получаем качество из запроса, по умолчанию 720
+        requested_quality = int(request.GET.get('quality', 720))
+
+        if not anime.shikimori_id:
+            return JsonResponse({'error': 'No Shikimori ID linked'}, status=404)
+
+        # Добавляем качество в ключ кэша
+        cache_key = f"kodik_stream_{anime.shikimori_id}_ep_{episode_num}_q_{requested_quality}_tr_{translation_id}"
+        cached_url = cache.get(cache_key)
+
+        if cached_url:
+            return JsonResponse({'url': cached_url, 'source': 'cache'})
+
+        # Запрашиваем конкретное качество у Кодика
+        link = kodik_parser.get_m3u8_playlist_link(
+            id=str(anime.shikimori_id),
+            id_type="shikimori",
+            seria_num=int(episode_num),
+            translation_id=translation_id,
+            quality=requested_quality  # Передаем нужное качество сюда
+        )
+
+        if link:
+            if link.startswith('//'):
+                link = 'https:' + link
+            cache.set(cache_key, link, timeout=7200)
+            return JsonResponse({'url': link, 'source': 'api', 'quality': requested_quality})
+
+        return JsonResponse({'error': 'Video not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+@require_GET
+def kodik_translations(request, slug):
+    try:
+        anime = get_object_or_404(AnimeTitle, code=slug)
+        if not anime.shikimori_id:
+            return JsonResponse({'error': 'No ID'}, status=404)
+
+        cache_key = f"kodik_trans_{anime.shikimori_id}"
+        cached_data = cache.get(cache_key)
+        if cached_data:
+            return JsonResponse({'translations': cached_data})
+
+        info = kodik_parser.get_info(id=str(anime.shikimori_id), id_type="shikimori")
+
+        if info and 'translations' in info:
+            translations = info['translations']
+            # translations — это список словарей: [{'id': '609', 'name': 'AniDUB', 'type': 'voice'}, ...]
+
+            cache.set(cache_key, translations, timeout=43200) # 12 часов
+            return JsonResponse({'translations': translations})
+
+        return JsonResponse({'translations': []})
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
