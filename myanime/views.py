@@ -462,44 +462,40 @@ kodik_parser = KodikParser(validate_token=False)
 @require_GET
 def kodik_link(request, slug):
     try:
-        # 1. Получаем аниме и номер серии
         anime = get_object_or_404(AnimeTitle, code=slug)
         episode_num = request.GET.get('episode', 1)
         translation_id = request.GET.get('translation', '0')
+        # Получаем качество из запроса, по умолчанию 720
+        requested_quality = int(request.GET.get('quality', 720))
 
-        # Если нет ID Шикимори, мы не сможем найти видео в Kodik
         if not anime.shikimori_id:
             return JsonResponse({'error': 'No Shikimori ID linked'}, status=404)
 
-        # 2. Проверяем кэш (чтобы не долбить API Кодика каждую секунду)
-        # Кэш уникален для тайтла и номера серии
-        cache_key = f"kodik_stream_{anime.shikimori_id}_ep_{episode_num}"
+        # Добавляем качество в ключ кэша
+        cache_key = f"kodik_stream_{anime.shikimori_id}_ep_{episode_num}_q_{requested_quality}_tr_{translation_id}"
         cached_url = cache.get(cache_key)
+
         if cached_url:
             return JsonResponse({'url': cached_url, 'source': 'cache'})
-        # 3. Запрашиваем ссылку у Kodik
-        # Используем get_m3u8_playlist_link (он возвращает master-playlist со всеми качествами)
+
+        # Запрашиваем конкретное качество у Кодика
         link = kodik_parser.get_m3u8_playlist_link(
             id=str(anime.shikimori_id),
             id_type="shikimori",
             seria_num=int(episode_num),
             translation_id=translation_id,
-            quality=720
+            quality=requested_quality  # Передаем нужное качество сюда
         )
 
         if link:
             if link.startswith('//'):
                 link = 'https:' + link
-
-            # Сохраняем в кэш на 2 часа
             cache.set(cache_key, link, timeout=7200)
-            return JsonResponse({'url': link, 'source': 'api'})
+            return JsonResponse({'url': link, 'source': 'api', 'quality': requested_quality})
 
         return JsonResponse({'error': 'Video not found'}, status=404)
-
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)
-
 
 @require_GET
 def kodik_translations(request, slug):

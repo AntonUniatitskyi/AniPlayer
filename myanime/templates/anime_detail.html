@@ -661,70 +661,95 @@
             if (skipOpBtn) skipOpBtn.addEventListener('click', () => { if (window.mainPlayer) { window.mainPlayer.currentTime = opEnd; window.mainPlayer.play(); } });
             if (skipEdBtn) skipEdBtn.addEventListener('click', () => { if (window.mainPlayer) { window.mainPlayer.currentTime = edEnd; window.mainPlayer.play(); } });
 
+            // Включаем режим отладки в консоли
+            const DBG = (msg, data = "") => console.log(`[AnimeDebug] ${msg}`, data);
+
             function updateQuality(newQuality) {
                 if (!window.mainPlayer) return;
-
-                // ПРОВЕРКА: Если выбрана любая озвучка, кроме 'internal' (т.е. Kodik)
-                // Мы блокируем смену, так как Kodik сам управляет адаптивным потоком.
-                if (window.currentTranslationId !== 'internal') {
-                    console.log("Quality switch is disabled for Kodik streams.");
-                    return;
-                }
-
                 const q = parseInt(newQuality);
-                console.log("Manual quality switch for Internal to:", q);
 
-                const activeBtn = document.querySelector('.ep-row.active');
-                if (!activeBtn) return;
+                // Захватываем состояние ПРЯМО СЕЙЧАС
+                const currentTime = window.mainPlayer.currentTime;
+                const isPlaying = !window.mainPlayer.paused;
+                window.pendingQuality = q;
 
-                const newUrl = getUrlForQuality(activeBtn, q);
+                if (window.currentTranslationId === 'internal') {
+                    const activeBtn = document.querySelector('.ep-row.active');
+                    const newUrl = getUrlForQuality(activeBtn, q);
+                    if (newUrl) loadStream(newUrl, currentTime, isPlaying);
+                } else {
+                    const activeBtn = document.querySelector('.ep-row.active');
+                    if (!activeBtn) return;
 
-                if (newUrl) {
-                    // Небольшая защита от повторной загрузки того же самого URL
-                    if (window.pendingQuality === q) return;
-                    window.pendingQuality = q;
-
-                    loadStream(newUrl, window.mainPlayer.currentTime, window.mainPlayer.playing);
-
-                    // Сбрасываем временный флаг через секунду
-                    setTimeout(() => { window.pendingQuality = null; }, 1000);
+                    const epNum = activeBtn.getAttribute('data-ordinal');
+                    fetch(`/api/stream/{{ anime.code }}/?episode=${epNum}&translation=${window.currentTranslationId}&quality=${q}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if (data.url) loadStream(data.url, currentTime, isPlaying);
+                        });
                 }
             }
 
             function loadStream(url, startTime = 0, autoPlay = false) {
+                const videoElement = document.getElementById('player');
+                const isInternal = window.currentTranslationId === 'internal';
+
+                DBG("Запуск loadStream", { url, startTime, autoPlay });
+
                 if (Hls.isSupported()) {
-                    if (window.hlsInstance) window.hlsInstance.destroy();
+                    if (window.hlsInstance) {
+                        window.hlsInstance.destroy();
+                    }
+
                     window.hlsInstance = new Hls(hlsConfig);
                     window.hlsInstance.loadSource(url);
                     window.hlsInstance.attachMedia(videoElement);
-                    window.hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-                        const availableQualities = window.hlsInstance.levels.map(l => l.height);
-                        if (availableQualities.length > 1) {
-                            availableQualities.sort((a, b) => b - a);
-                            window.mainPlayer.config.quality.options = availableQualities;
-                        }
-                        if (startTime > 0) videoElement.currentTime = startTime;
-                        if (autoPlay) window.mainPlayer.play().catch(() => {
-                            window.mainPlayer.muted = true;
-                            window.mainPlayer.play();
-                            showUnmuteOverlay();
-                        });
+
+                    // 1. Настраиваем меню качеств
+                    window.hlsInstance.once(Hls.Events.MANIFEST_PARSED, () => {
+                        let qualities = isInternal ? [1080, 720, 480] : [720, 480, 360];
+                        const currentQ = window.pendingQuality ||
+                                        (window.userSettings ? window.userSettings.defaultQuality : (isInternal ? 1080 : 720));
+
+                        window.mainPlayer.config.quality = {
+                            default: currentQ,
+                            options: qualities,
+                            forced: true,
+                            onChange: (newQ) => updateQuality(newQ)
+                        };
+                        window.mainPlayer.setQuality(currentQ);
                     });
-                    window.hlsInstance.on(Hls.Events.ERROR, function (event, data) {
-                        if (data.fatal) {
-                            switch (data.type) {
-                                case Hls.ErrorTypes.NETWORK_ERROR: hls.startLoad(); break;
-                                case Hls.ErrorTypes.MEDIA_ERROR: hls.recoverMediaError(); break;
-                                default: hls.destroy(); break;
-                            }
+
+                    // 2. КРИТИЧЕСКИЙ МОМЕНТ: Ждем готовности метаданных для перемотки
+                    const onMetadataLoaded = () => {
+                        if (startTime > 0) {
+                            DBG(`Восстанавливаем время: ${startTime} сек.`);
+                            videoElement.currentTime = startTime;
                         }
-                    });
+
+                        if (autoPlay) {
+                            // Маленькая задержка перед play, чтобы браузер успел обновить стейт
+                            setTimeout(() => {
+                                window.mainPlayer.play().catch(() => {
+                                    window.mainPlayer.muted = true;
+                                    window.mainPlayer.play();
+                                    if (typeof showUnmuteOverlay === 'function') showUnmuteOverlay();
+                                });
+                            }, 100);
+                        }
+                        // Удаляем слушатель, чтобы он не срабатывал при буферизации
+                        videoElement.removeEventListener('loadedmetadata', onMetadataLoaded);
+                    };
+
+                    videoElement.addEventListener('loadedmetadata', onMetadataLoaded);
+
                 } else if (videoElement.canPlayType('application/vnd.apple.mpegurl')) {
+                    // Для Safari (iOS/Mac)
                     videoElement.src = url;
                     videoElement.addEventListener('loadedmetadata', () => {
                         if (startTime > 0) videoElement.currentTime = startTime;
                         if (autoPlay) window.mainPlayer.play();
-                    });
+                    }, { once: true });
                 }
             }
 
