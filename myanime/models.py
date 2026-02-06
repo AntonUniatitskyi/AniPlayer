@@ -28,6 +28,9 @@ class Genre(models.Model):
 class AnimeTitle(models.Model):
     anilibria_id = models.IntegerField(
         unique=True, verbose_name="Anilibria ID")
+    shikimori_id = models.IntegerField(
+        null=True, blank=True, verbose_name="Shikimori ID", db_index=True
+    )
     genres = models.ManyToManyField(Genre, related_name='animes', verbose_name="Жанры", blank=True)
 
     code = models.CharField(max_length=255, verbose_name="Код (slug)")

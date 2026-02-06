@@ -7,12 +7,14 @@ import requests
 from asgiref.sync import sync_to_async
 from django.db import transaction
 from django.conf import settings
+from anime_parsers_ru import KodikParser
 
 from .models import AnimeTitle, Episode, Genre, Franchise
 
 CONCURENT_REQUESTS = 20
 BASE_SITE_URL = "https://aniliberty.top"
 
+kodik_parser = KodikParser(validate_token=False)
 logger = logging.getLogger('django')
 
 # Оставляем вывод в консоль для удобства
@@ -60,6 +62,11 @@ def save_batch_to_db(batch_data, stats):
             ani_id = rel_data.get('id')
             if not ani_id:
                 continue
+
+            name_ru = rel_data.get('name', {}).get('main')
+            name_en = rel_data.get('name', {}).get('english')
+
+
             poster_obj = rel_data.get('poster', {})
             poster_path = None
             if poster_obj.get('optimized'):
@@ -82,6 +89,28 @@ def save_batch_to_db(batch_data, stats):
                 if not api_updated:
                     api_updated = timezone.now()
 
+                anime_obj = AnimeTitle.objects.filter(anilibria_id=ani_id).first()
+                current_shiki_id = anime_obj.shikimori_id if anime_obj else None
+                json_shiki_id = rel_data.get('shikimori_id')
+                final_shiki_id = json_shiki_id if json_shiki_id else current_shiki_id
+
+                if not final_shiki_id and name_ru:
+                    print(f"🕵️ Ищу ID для: {name_ru} ...")
+                    try:
+                        res = kodik_parser.search(title=name_ru, limit=1)
+                        if not res and name_en:
+                            res = kodik_parser.search(title=name_en, limit=1)
+                        if res:
+                            found_id = res[0].get('shikimori_id')
+                            if found_id:
+                                final_shiki_id = int(found_id)
+                                print(f"   ✅ Нашел! ID: {final_shiki_id}")
+                        else:
+                            print(f"   ⚠️ Ничего не найдено в Kodik.")
+                        time.sleep(0.3)
+                    except Exception as e:
+                        print(f"   ❌ Ошибка поиска: {e}")
+
                 type_obj = rel_data.get('type')
                 kind_val = None
                 kind_desc = None
@@ -92,8 +121,8 @@ def save_batch_to_db(batch_data, stats):
                     anilibria_id=ani_id,
                     defaults={
                         'code': rel_data.get('alias'),
-                        'name_ru': rel_data.get('name', {}).get('main'),
-                        'name_en': rel_data.get('name', {}).get('english'),
+                        'name_ru': name_ru,
+                        'name_en': name_en,
                         'description': rel_data.get('description', '') or '',
                         'poster_path': poster_path or '',
                         'player_url': '',
@@ -101,6 +130,7 @@ def save_batch_to_db(batch_data, stats):
                         'kind': kind_val,
                         'kind_ru': kind_desc,
                         'year': year_val,
+                        'shikimori_id': final_shiki_id,
                     }
                 )
                 if created:

@@ -71,6 +71,8 @@ urlpatterns = [
     path('api/subscribe/', views.toggle_subscription, name='toggle_subscription'),
     path('sw.js', TemplateView.as_view(template_name='sw.js', content_type='application/javascript'), name='sw.js'),
     path('wrapped/', views.user_wrapped_view, name='wrapped'),
-    path('api/wrapped-data/', views.wrapped_data_api, name='wrapped_api')
+    path('api/wrapped-data/', views.wrapped_data_api, name='wrapped_api'),
+    path('api/stream/<slug:slug>/', views.kodik_link, name='get_kodik_link'),
+    path('api/translations/<slug:slug>/', views.kodik_translations, name='get_kodik_translations'),
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
