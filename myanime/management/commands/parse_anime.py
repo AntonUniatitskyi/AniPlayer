@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from myanime.services import fetch_anilibria_updates
+from myanime.services import fetch_full_sync
 
 
 class Command(BaseCommand):
@@ -20,7 +20,7 @@ class Command(BaseCommand):
             self.stdout.write("🌍 Быстрая проверка новинок (5 страниц)...")
 
         try:
-            new_count, updated_count = fetch_anilibria_updates(
+            new_count, updated_count = fetch_full_sync(
                 full_load=full_load)
 
             self.stdout.write(self.style.SUCCESS(

@@ -161,6 +161,8 @@ class AnimeTitleDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         anime = self.object
+        has_local_episodes = anime.episodes.exists()
+        has_shikimori_id = anime.shikimori_id is not None
         # Берем жанры текущего аниме
         anime_genres = anime.genres.all()
         franchise_releases = []
@@ -176,6 +178,7 @@ class AnimeTitleDetailView(DetailView):
             .order_by('-same_genres', '-updated_at')\
             .distinct()[:6]
 
+        context['show_player'] = has_local_episodes or has_shikimori_id
         context['franchise_releases'] = franchise_releases
         context['similar_anime'] = similar_anime
         context['last_episode_id'] = None
@@ -511,13 +514,16 @@ def kodik_translations(request, slug):
 
         info = kodik_parser.get_info(id=str(anime.shikimori_id), id_type="shikimori")
 
-        if info and 'translations' in info:
-            translations = info['translations']
+        if info:
+            data = {
+                'translations': info.get('translations', []),
+                'series_count': info.get('series_count', 1), # <-- Добавили количество серий
+            }
             # translations — это список словарей: [{'id': '609', 'name': 'AniDUB', 'type': 'voice'}, ...]
 
-            cache.set(cache_key, translations, timeout=43200) # 12 часов
-            return JsonResponse({'translations': translations})
+            cache.set(cache_key, data, timeout=43200)
+            return JsonResponse(data)
 
-        return JsonResponse({'translations': []})
+        return JsonResponse({'translations': [], 'series_count': 0})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=500)

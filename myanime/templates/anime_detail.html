@@ -3,295 +3,306 @@
 {% block title %}{{ anime.name_ru }}{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/anime_detail.css' %}">
-    {% if not user.is_authenticated or user.profile.backdrop_blur %}
-        <div class="anime-backdrop">
-            <div class="backdrop-image" style="background-image: url('{{ anime.poster_path }}');"></div>
-            <div class="backdrop-gradient"></div>
-        </div>
-    {% endif %}
+<div id="anime-page-data"
+     data-code="{{ anime.code }}"
+     data-shiki="{{ anime.shikimori_id|default:'' }}"
+     data-local-count="{{ anime.episodes.count }}"
+     data-last-ordinal="{{ last_ordinal|default:1 }}">
 
-    <div class="content-wrapper detail-page">
-        <nav class="breadcrumbs">
-            <a href="{% url 'home' %}">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-                Главная
-            </a>
-            <span class="separator">/</span>
+     <link rel="stylesheet" href="{% static 'css/anime_detail.css' %}">
+     {% if not user.is_authenticated or user.profile.backdrop_blur %}
+         <div class="anime-backdrop">
+             <div class="backdrop-image" style="background-image: url('{{ anime.poster_path }}');"></div>
+             <div class="backdrop-gradient"></div>
+         </div>
+     {% endif %}
 
-            {% if request.GET.ref == 'library' %}
-                <a href="{% url 'library' %}">Моя библиотека</a>
-            {% else %}
-                <a href="{% url 'home' %}">Каталог</a>
-            {% endif %}
+     <div class="content-wrapper detail-page">
+         <nav class="breadcrumbs">
+             <a href="{% url 'home' %}">
+                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                     <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                     <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                 </svg>
+                 Главная
+             </a>
+             <span class="separator">/</span>
 
-            <span class="separator">/</span>
-            <span class="current">{{ anime.name_ru }}</span>
-        </nav>
+             {% if request.GET.ref == 'library' %}
+                 <a href="{% url 'library' %}">Моя библиотека</a>
+             {% else %}
+                 <a href="{% url 'home' %}">Каталог</a>
+             {% endif %}
 
-        <div class="anime-hero">
-            <div class="poster-container">
-                <div class="poster-card">
-                    {% if anime.poster_path %}
-                        <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}" class="main-poster">
-                    {% else %}
-                        <div class="no-poster-placeholder"></div>
-                    {% endif %}
-                </div>
-            </div>
+             <span class="separator">/</span>
+             <span class="current">{{ anime.name_ru }}</span>
+         </nav>
 
-            <div class="info-container">
-                <h1 class="anime-title">{{ anime.name_ru }}</h1>
-                {% if anime.name_en %}
-                    <h2 class="anime-subtitle">{{ anime.name_en }}</h2>
-                {% endif %}
+         <div class="anime-hero">
+             <div class="poster-container">
+                 <div class="poster-card">
+                     {% if anime.poster_path %}
+                         <img src="{{ anime.poster_path }}" alt="{{ anime.name_ru }}" class="main-poster">
+                     {% else %}
+                         <div class="no-poster-placeholder"></div>
+                     {% endif %}
+                 </div>
+             </div>
 
-                <div class="meta-tags">
-                    {% if anime.updated_at %}
-                        <span class="tag year">{{ anime.year }}</span>
-                    {% endif %}
-                    {% if anime.kind_ru %}
-                        <span class="tag type">{{ anime.kind_ru }}</span>
-                    {% endif %}
-                    {% for genre in anime.genres.all %}
-                        <span class="tag">{{ genre.name }}</span>
-                    {% endfor %}
-                    <span class="tag">ID: {{ anime.anilibria_id }}</span>
-                </div>
+             <div class="info-container">
+                 <h1 class="anime-title">{{ anime.name_ru }}</h1>
+                 {% if anime.name_en %}
+                     <h2 class="anime-subtitle">{{ anime.name_en }}</h2>
+                 {% endif %}
 
-                <div class="description-box">
-                    <p>{{ anime.description }}</p>
-                </div>
+                 <div class="meta-tags">
+                     {% if anime.updated_at %}
+                         <span class="tag year">{{ anime.year }}</span>
+                     {% endif %}
+                     {% if anime.kind_ru %}
+                         <span class="tag type">{{ anime.kind_ru }}</span>
+                     {% endif %}
+                     {% for genre in anime.genres.all %}
+                         <span class="tag">{{ genre.name }}</span>
+                     {% endfor %}
+                     <span class="tag">ID: {{ anime.anilibria_id }}</span>
+                 </div>
 
-                {% if user.is_authenticated %}
-                    <div class="user-actions-row">
-                        <div class="custom-dropdown" id="animeStatusDropdown">
+                 <div class="description-box">
+                     <p>{{ anime.description }}</p>
+                 </div>
 
-                            <button type="button" class="dropdown-trigger" onclick="toggleDropdown()">
-                                <span class="current-status-icon">
-                                    {% if user_status == 'watching' %}👀{% elif user_status == 'planned' %}📅{% elif user_status == 'completed' %}✅{% elif user_status == 'dropped' %}🗑{% else %}➕{% endif %}
-                                </span>
-                                <span class="current-status-text">
-                                    {% if user_status == 'watching' %}Смотрю
-                                    {% elif user_status == 'planned' %}В планах
-                                    {% elif user_status == 'completed' %}Просмотрено
-                                    {% elif user_status == 'dropped' %}Брошено
-                                    {% else %}Добавить в список{% endif %}
-                                </span>
-                                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
-                            </button>
+                 {% if user.is_authenticated %}
+                     <div class="user-actions-row">
+                         <div class="custom-dropdown" id="animeStatusDropdown">
 
-                            <div class="dropdown-menu">
-                                <div class="dropdown-item" onclick="selectStatus('watching', '{{ anime.code }}')">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
-                                    <span>Смотрю</span>
-                                </div>
+                             <button type="button" class="dropdown-trigger" onclick="toggleDropdown()">
+                                 <span class="current-status-icon">
+                                     {% if user_status == 'watching' %}👀{% elif user_status == 'planned' %}📅{% elif user_status == 'completed' %}✅{% elif user_status == 'dropped' %}🗑{% else %}➕{% endif %}
+                                 </span>
+                                 <span class="current-status-text">
+                                     {% if user_status == 'watching' %}Смотрю
+                                     {% elif user_status == 'planned' %}В планах
+                                     {% elif user_status == 'completed' %}Просмотрено
+                                     {% elif user_status == 'dropped' %}Брошено
+                                     {% else %}Добавить в список{% endif %}
+                                 </span>
+                                 <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                             </button>
 
-                                <div class="dropdown-item" onclick="selectStatus('planned', '{{ anime.code }}')">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-                                    <span>В планах</span>
-                                </div>
+                             <div class="dropdown-menu">
+                                 <div class="dropdown-item" onclick="selectStatus('watching', '{{ anime.code }}')">
+                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                                     <span>Смотрю</span>
+                                 </div>
 
-                                <div class="dropdown-item" onclick="selectStatus('completed', '{{ anime.code }}')">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-                                    <span>Просмотрено</span>
-                                </div>
+                                 <div class="dropdown-item" onclick="selectStatus('planned', '{{ anime.code }}')">
+                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                                     <span>В планах</span>
+                                 </div>
 
-                                <div class="dropdown-item" onclick="selectStatus('dropped', '{{ anime.code }}')">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-                                    <span>Брошено</span>
-                                </div>
+                                 <div class="dropdown-item" onclick="selectStatus('completed', '{{ anime.code }}')">
+                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                                     <span>Просмотрено</span>
+                                 </div>
 
-                                {% if user_status %}
-                                <div class="dropdown-divider"></div>
-                                <div class="dropdown-item danger" onclick="selectStatus('none', '{{ anime.code }}')">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                                    <span>Убрать из списка</span>
-                                </div>
-                                {% endif %}
-                            </div>
-                        </div>
+                                 <div class="dropdown-item" onclick="selectStatus('dropped', '{{ anime.code }}')">
+                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                                     <span>Брошено</span>
+                                 </div>
 
-                        <button id="subBtn" class="bell-btn {% if is_subscribed %}active{% endif %}"
-                                onclick="toggleSubscription('{{ anime.code }}')"
-                                aria-label="Уведомлять о новых сериях">
+                                 {% if user_status %}
+                                 <div class="dropdown-divider"></div>
+                                 <div class="dropdown-item danger" onclick="selectStatus('none', '{{ anime.code }}')">
+                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="dd-icon"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                     <span>Убрать из списка</span>
+                                 </div>
+                                 {% endif %}
+                             </div>
+                         </div>
 
-                            <svg class="bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                            </svg>
+                         <button id="subBtn" class="bell-btn {% if is_subscribed %}active{% endif %}"
+                                 onclick="toggleSubscription('{{ anime.code }}')"
+                                 aria-label="Уведомлять о новых сериях">
 
-                            <div class="bell-status-check">
-                                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            </div>
-                        </button>
-                    </div>
-                {% endif %}
-            </div>
-        </div>
+                             <svg class="bell-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                 <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                             </svg>
 
-        {% if franchise_releases %}
-        <div class="franchise-section">
-            <h3 class="section-title">Порядок просмотра</h3>
-            <div class="franchise-list-container">
-                <div class="franchise-track">
-                    {% for item in franchise_releases %}
-                        <a href="{% url 'anime_detail' item.code %}"
-                           class="fr-card {% if item.id == anime.id %}current{% endif %}">
+                             <div class="bell-status-check">
+                                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="4"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                             </div>
+                         </button>
+                     </div>
+                 {% endif %}
+             </div>
+         </div>
 
-                            <div class="fr-poster">
-                                <img src="{{ item.poster_path }}" alt="{{ item.name_ru }}" loading="lazy">
+         {% if franchise_releases %}
+         <div class="franchise-section">
+             <h3 class="section-title">Порядок просмотра</h3>
+             <div class="franchise-list-container">
+                 <div class="franchise-track">
+                     {% for item in franchise_releases %}
+                         <a href="{% url 'anime_detail' item.code %}"
+                            class="fr-card {% if item.id == anime.id %}current{% endif %}">
 
-                                <div class="fr-order">#{{ forloop.counter }}</div>
+                             <div class="fr-poster">
+                                 <img src="{{ item.poster_path }}" alt="{{ item.name_ru }}" loading="lazy">
 
-                                {% if item.id == anime.id %}
-                                    <div class="fr-overlay active">
-                                        <span>Сейчас</span>
-                                    </div>
-                                {% endif %}
-                            </div>
+                                 <div class="fr-order">#{{ forloop.counter }}</div>
 
-                            <div class="fr-meta">
-                                <div class="fr-year">
-                                    {% if item.updated_at %}{{ item.updated_at|date:"Y" }}{% endif %}
-                                </div>
-                                <div class="fr-name">{{ item.name_ru }}</div>
-                            </div>
-                        </a>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-        {% endif %}
+                                 {% if item.id == anime.id %}
+                                     <div class="fr-overlay active">
+                                         <span>Сейчас</span>
+                                     </div>
+                                 {% endif %}
+                             </div>
 
-        {% if anime.episodes.exists %}
-        <div class="player-section" id="watch">
-            <div class="translation-block glass-panel">
-                <span class="tr-label">Озвучка:</span>
-                <div class="custom-dropdown" id="translationDropdown">
-                    <button type="button" class="dropdown-trigger" onclick="toggleTranslationDropdown()">
-                        <span class="current-status-text" id="activeTranslationText">Загрузка...</span>
-                        <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M6 9l6 6 6-6"/>
-                        </svg>
-                    </button>
+                             <div class="fr-meta">
+                                 <div class="fr-year">
+                                     {% if item.updated_at %}{{ item.updated_at|date:"Y" }}{% endif %}
+                                 </div>
+                                 <div class="fr-name">{{ item.name_ru }}</div>
+                             </div>
+                         </a>
+                     {% endfor %}
+                 </div>
+             </div>
+         </div>
+         {% endif %}
 
-                    <div class="dropdown-menu" id="translationMenu">
-                        </div>
-                </div>
-            </div>
-            <div class="cinema-container {% if anime.kind == 'MOVIE' %}movie-mode{% endif %}">
-                <div class="video-wrapper">
-                    <video id="player" controls crossorigin playsinline></video>
+         {% if show_player %}
+         <div class="player-section" id="watch">
+             <div class="translation-block glass-panel">
+                 <span class="tr-label">Озвучка:</span>
+                 <div class="custom-dropdown" id="translationDropdown">
+                     <button type="button" class="dropdown-trigger" onclick="toggleTranslationDropdown()">
+                         <span class="current-status-text" id="activeTranslationText">Загрузка...</span>
+                         <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                             <path d="M6 9l6 6 6-6"/>
+                         </svg>
+                     </button>
 
-                    <div class="skip-buttons-container">
-                        <button id="skipOp" class="skip-btn" style="display: none;">
-                            Пропустить опенинг <span class="skip-arrow">→</span>
-                        </button>
-                        <button id="skipEd" class="skip-btn" style="display: none;">
-                            Пропустить эндинг <span class="skip-arrow">→</span>
-                        </button>
-                    </div>
-                </div>
+                     <div class="dropdown-menu" id="translationMenu">
+                         </div>
+                 </div>
+             </div>
+             <div class="cinema-container {% if anime.kind == 'MOVIE' %}movie-mode{% endif %}">
+                 <div class="video-wrapper">
+                     <video id="player" controls crossorigin playsinline></video>
 
-                <div class="playlist-sidebar">
-                    <div class="playlist-header">
-                        <span class="ph-title">Эпизоды</span>
-                        <span class="ph-count">{{ anime.episodes.count }}</span>
-                    </div>
+                     <div class="skip-buttons-container">
+                         <button id="skipOp" class="skip-btn" style="display: none;">
+                             Пропустить опенинг <span class="skip-arrow">→</span>
+                         </button>
+                         <button id="skipEd" class="skip-btn" style="display: none;">
+                             Пропустить эндинг <span class="skip-arrow">→</span>
+                         </button>
+                     </div>
+                 </div>
 
-                    <div class="playlist-controls">
-                        <div class="search-wrap">
-                            <input type="text" id="epSearch" placeholder="Найти серию..." autocomplete="off">
-                            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                        </div>
-                        <div id="rangeContainer" class="range-container"></div>
-                    </div>
+                 <div class="playlist-sidebar">
+                     <div class="playlist-header">
+                         <span class="ph-title">Эпизоды</span>
+                         <span class="ph-count">{% if anime.episodes.exists %}{{ anime.episodes.count }}{% else %}API{% endif %}</span>
+                     </div>
 
-                    <div class="episode-list-wrapper">
-                        <div class="episode-grid" id="episodeGrid">
-                            {% for episode in anime.episodes.all %}
-                                <button
-                                    class="ep-row"
-                                    data-id="{{ episode.id }}"
-                                    data-ordinal="{{ episode.ordinal }}"
+                     <div class="playlist-controls">
+                         <div class="search-wrap">
+                             <input type="text" id="epSearch" placeholder="Найти серию..." autocomplete="off">
+                             <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                         </div>
+                         <div id="rangeContainer" class="range-container"></div>
+                     </div>
 
-                                    data-480="{{ episode.hls_480|default:'' }}"
-                                    data-720="{{ episode.hls_720|default:'' }}"
-                                    data-1080="{{ episode.hls_1080|default:'' }}"
+                     <div class="episode-list-wrapper">
+                         <div class="episode-grid" id="episodeGrid">
+                             {% for episode in anime.episodes.all %}
+                                 <button
+                                     class="ep-row"
+                                     data-id="{{ episode.id }}"
+                                     data-ordinal="{{ episode.ordinal }}"
 
-                                    data-op-start="{{ episode.skip_op_start|default:0 }}"
-                                    data-op-end="{{ episode.skip_op_end|default:0 }}"
-                                    data-ed-start="{{ episode.skip_ed_start|default:0 }}"
-                                    data-ed-end="{{ episode.skip_ed_end|default:0 }}"
+                                     data-480="{{ episode.hls_480|default:'' }}"
+                                     data-720="{{ episode.hls_720|default:'' }}"
+                                     data-1080="{{ episode.hls_1080|default:'' }}"
 
-                                    onclick="selectEpisode(this)">
+                                     data-op-start="{{ episode.skip_op_start|default:0 }}"
+                                     data-op-end="{{ episode.skip_op_end|default:0 }}"
+                                     data-ed-start="{{ episode.skip_ed_start|default:0 }}"
+                                     data-ed-end="{{ episode.skip_ed_end|default:0 }}"
 
-                                    <span class="ep-number">{{ episode.ordinal }}</span>
-                                    <span class="ep-info">Серия {{ episode.ordinal }}</span>
-                                    <span class="ep-play-icon">▶</span>
-                                </button>
-                            {% endfor %}
-                        </div>
-                        <div id="noEpsFound" class="no-eps-found" style="display: none;">Не найдено</div>
-                    </div>
-                </div>
-            </div>
-            <div class="party-controls-card glass-panel mt-4">
-                <div class="party-header-layout">
-                    <div class="party-info-group">
-                        <div>
-                            <h4 class="party-title">Совместный просмотр</h4>
-                            <p id="party-status-text" class="party-subtitle">Создайте комнату, чтобы смотреть вместе с друзьями</p>
-                        </div>
-                    </div>
-                    <div class="party-actions-group">
-                        <button id="btn-copy-link" onclick="copyLink()" class="action-btn-circle" title="Копировать ссылку" style="display: none;">
-                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 13v-1a2 2 0 012-2h7a2 2 0 012 2v7a2 2 0 01-2 2h-7a2 2 0 01-2-2v-1m-1-8H4a2 2 0 00-2 2v7a2 2 0 002 2h7a2 2 0 002-2v-3"></path></svg>
-                        </button>
-                        <button id="btn-party-toggle" onclick="handlePartyAction()" class="party-main-btn">
-                            <span id="party-btn-icon">✨</span>
-                            <span id="party-btn-text">Создать комнату</span>
-                        </button>
-                    </div>
-                </div>
+                                     onclick="selectEpisode(this)">
 
-                <div id="party-members-area" class="party-members-section" style="display: none;">
-                    <div class="party-divider"></div>
-                    <div class="members-grid" id="members-list">
-                        </div>
-                </div>
-            </div>
-        </div>
-        {% else %}
-            <div class="no-content">
-                <div class="empty-icon">⏳</div>
-                <h3>Серии скоро появятся</h3>
-                <p>Мы уже работаем над загрузкой контента для этого тайтла.</p>
-            </div>
-        {% endif %}
-        {% if similar_anime %}
-        <div class="similar-section">
-            <h3 class="section-title">Вам может понравиться</h3>
-            {% include 'includes/anime_grid.html' with anime_list=similar_anime %}
-        </div>
+                                     <span class="ep-number">{{ episode.ordinal }}</span>
+                                     <span class="ep-info">Серия {{ episode.ordinal }}</span>
+                                     <span class="ep-play-icon">▶</span>
+                                 </button>
+                             {% endfor %}
+                         </div>
+                         {% if not anime.episodes.exists %}
+                             <div id="kodik-notice" style="text-align:center; padding: 20px; opacity: 0.6;">
+                                 Загрузка серий из Kodik...
+                             </div>
+                         {% endif %}
+                         <div id="noEpsFound" class="no-eps-found" style="display: none;">Не найдено</div>
+                     </div>
+                 </div>
+             </div>
+             <div class="party-controls-card glass-panel mt-4">
+                 <div class="party-header-layout">
+                     <div class="party-info-group">
+                         <div>
+                             <h4 class="party-title">Совместный просмотр</h4>
+                             <p id="party-status-text" class="party-subtitle">Создайте комнату, чтобы смотреть вместе с друзьями</p>
+                         </div>
+                     </div>
+                     <div class="party-actions-group">
+                         <button id="btn-copy-link" onclick="copyLink()" class="action-btn-circle" title="Копировать ссылку" style="display: none;">
+                             <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M8 13v-1a2 2 0 012-2h7a2 2 0 012 2v7a2 2 0 01-2 2h-7a2 2 0 01-2-2v-1m-1-8H4a2 2 0 00-2 2v7a2 2 0 002 2h7a2 2 0 002-2v-3"></path></svg>
+                         </button>
+                         <button id="btn-party-toggle" onclick="handlePartyAction()" class="party-main-btn">
+                             <span id="party-btn-icon">✨</span>
+                             <span id="party-btn-text">Создать комнату</span>
+                         </button>
+                     </div>
+                 </div>
 
-        <style>
-            .similar-section { margin-top: 60px; }
-            .section-title {
-                font-size: 1.5rem; font-weight: 700; margin-bottom: 25px;
-                color: var(--text-main); border-left: 4px solid var(--primary);
-                padding-left: 15px;
-            }
-        </style>
-        {% endif %}
-    </div>
+                 <div id="party-members-area" class="party-members-section" style="display: none;">
+                     <div class="party-divider"></div>
+                     <div class="members-grid" id="members-list">
+                         </div>
+                 </div>
+             </div>
+         </div>
+         {% else %}
+             <div class="no-content">
+                 <div class="empty-icon">⏳</div>
+                 <h3>Серии скоро появятся</h3>
+                 <p>Мы уже работаем над загрузкой контента для этого тайтла.</p>
+             </div>
+         {% endif %}
+         {% if similar_anime %}
+         <div class="similar-section">
+             <h3 class="section-title">Вам может понравиться</h3>
+             {% include 'includes/anime_grid.html' with anime_list=similar_anime %}
+         </div>
+
+         <style>
+             .similar-section { margin-top: 60px; }
+             .section-title {
+                 font-size: 1.5rem; font-weight: 700; margin-bottom: 25px;
+                 color: var(--text-main); border-left: 4px solid var(--primary);
+                 padding-left: 15px;
+             }
+         </style>
+         {% endif %}
+     </div>
+</div>
 
     <script>
-    {
         window.mainPlayer = null;
         window.hlsInstance = null;
         window.currentTranslationId = localStorage.getItem('preferred_translation') || '0';
@@ -346,7 +357,7 @@
             defaultQuality: 1080
         };
         // Оборачиваем всю логику в функцию initDetail
-        function initDetail() {
+        window.initDetail = function() {
             window.detailCleanup();
             document.addEventListener('click', window._closeTranslationOnClick);
             const currentStatus = "{{ user_status|default:'none' }}";
@@ -382,7 +393,6 @@
                 if (dd) dd.classList.toggle('open');
             };
 
-            loadTranslations();
             // Данные пользователя (рендерим один раз)
             if (!window.partySocket) {
                 window.userSettings = {
@@ -397,6 +407,65 @@
                     {% endif %}
                 };
             }
+
+            // === ЛОГИКА ЗАГРУЗКИ СПИСКА ОЗВУЧЕК (Добавлено) ===
+            const animeCode = "{{ anime.code }}";
+            const shikiId = "{{ anime.shikimori_id|default:'None' }}";
+            const localCount = parseInt("{{ anime.episodes.count|default:0 }}");
+
+            function loadTranslations() {
+                const btnText = document.getElementById('activeTranslationText');
+
+                // Если нет Shikimori ID и нет локальных серий — ловить нечего
+                if (shikiId === 'None' && localCount === 0) {
+                    if(btnText) btnText.textContent = "Нет озвучек";
+                    return;
+                }
+
+                // Запрашиваем озвучки с бэкенда
+                fetch(`/api/translations/${animeCode}/`)
+                    .then(r => r.json())
+                    .then(data => {
+                        // ИСПРАВЛЕНИЕ: Вызываем глобальную безопасную функцию из base.html
+                        // Если data.translations будет undefined, функция сама разберется
+                        if (typeof renderHybridTranslations === 'function') {
+                            renderHybridTranslations(data.translations, localCount, animeCode);
+                        }
+
+                        // Если локальных серий нет, но есть серии из Кодика - рисуем кнопки
+                        if (localCount === 0 && data.series_count) {
+                            if (typeof renderKodikEpisodes === 'function') {
+                                const lastOrdinal = parseInt("{{ last_ordinal|default:1 }}");
+                                renderKodikEpisodes(data.series_count, animeCode, lastOrdinal);
+
+                                // Автозапуск, если ничего не выбрано
+                                if (!window.currentTranslationId || window.currentTranslationId === 'internal') {
+                                    // Пытаемся взять Anilibria (643) или первую попавшуюся
+                                    const fallback = (data.translations && data.translations.length)
+                                        ? (data.translations.find(t => t.id == '643') || data.translations[0])
+                                        : null;
+
+                                    if (fallback) {
+                                        window.currentTranslationId = fallback.id;
+                                        if (btnText) btnText.textContent = fallback.name;
+                                        loadKodikEpisode(lastOrdinal, animeCode);
+                                    }
+                                }
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Ошибка загрузки озвучек:", err);
+                        // Если ошибка, но есть локальные - всё ок, оставляем их
+                        if (typeof renderHybridTranslations === 'function') {
+                            renderHybridTranslations([], localCount, animeCode);
+                        }
+                    });
+            }
+
+            // Запускаем
+            loadTranslations();
+            // === КОНЕЦ БЛОКА ЗАГРУЗКИ ОЗВУЧЕК ===
 
             const activeFranchiseCard = document.querySelector('.fr-card.current');
             const franchiseTrack = document.querySelector('.franchise-track');
@@ -434,54 +503,6 @@
                 manifestLoadingTimeOut: 20000, fragLoadingTimeOut: 20000, levelLoadingTimeOut: 20000,
                 startLevel: -1
             };
-            async function loadTranslations() {
-                const animeSlug = "{{ anime.code }}";
-                const menu = document.getElementById('translationMenu');
-                const buttonText = document.getElementById('activeTranslationText');
-                if (!menu) return;
-
-                try {
-                    const response = await fetch(`/api/translations/${animeSlug}/`);
-                    const data = await response.json();
-                    menu.innerHTML = '';
-
-                    const createItem = (id, name) => {
-                        const item = document.createElement('div');
-                        item.className = 'dropdown-item';
-                        if (id === window.currentTranslationId) item.classList.add('active');
-
-                        item.onclick = (e) => {
-                            e.stopPropagation();
-                            window.currentTranslationId = id;
-                            localStorage.setItem('preferred_translation', id);
-                            document.querySelectorAll('#translationMenu .dropdown-item').forEach(el => el.classList.remove('active'));
-                            item.classList.add('active');
-                            buttonText.textContent = name;
-                            document.getElementById('translationDropdown').classList.remove('open');
-
-                            // Переключаем озвучку в текущем плеере
-                            const activeBtn = document.querySelector('.ep-row.active');
-                            if (activeBtn) window.selectEpisode(activeBtn, true);
-                        };
-
-                        item.innerHTML = `<span>${name}</span>`;
-                        return item;
-                    };
-
-                    // Добавляем твою базу и Kodik
-                    menu.appendChild(createItem('internal', 'AniLibria (Прямой поток)'));
-                    if (data.translations) {
-                        data.translations.forEach(t => menu.appendChild(createItem(t.id, t.name)));
-                    }
-
-                    // Ставим текст на кнопку
-                    const savedId = localStorage.getItem('preferred_translation') || 'internal';
-                    const items = Array.from(menu.querySelectorAll('.dropdown-item'));
-                    const active = items.find(i => i.onclick.toString().includes(`'${savedId}'`));
-                    buttonText.textContent = active ? active.querySelector('span').textContent : 'AniLibria (Прямой поток)';
-
-                } catch (e) { console.error("Ошибка озвучек:", e); }
-            }
 
             window.changeTranslation = function(translationId) {
                 window.currentTranslationId = translationId;
@@ -690,7 +711,7 @@
                 }
             }
 
-            function loadStream(url, startTime = 0, autoPlay = false) {
+            window.loadStream = function(url, startTime = 0, autoPlay = false) {
                 const videoElement = document.getElementById('player');
                 const isInternal = window.currentTranslationId === 'internal';
 
@@ -910,6 +931,21 @@
                 const url = getUrlForQuality(targetBtn, userSettings.defaultQuality) || getUrlForQuality(targetBtn, 1080) || getUrlForQuality(targetBtn, 720);
                 if (url) loadStream(url, startTimestamp, false);
                 setTimeout(() => { targetBtn.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }, 500);
+            }  else if ("{{ anime.shikimori_id }}" !== "None") {
+                // ЕСЛИ КНОПОК НЕТ, НО ЭТО KODIK-ТАЙТЛ
+                DBG("Серий в БД нет, запускаем через Shikimori ID...");
+
+                // Принудительно ставим озвучку Kodik, если была 'internal' (так как в базе пусто)
+                if (window.currentTranslationId === 'internal') {
+                    window.currentTranslationId = localStorage.getItem('preferred_translation') || '643'; // 643 - это обычно AniLibria в Кодике
+                }
+
+                // Делаем запрос к твоему API для получения 1-й серии
+                fetch(`/api/stream/{{ anime.code }}/?episode=1&translation=${window.currentTranslationId}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if (data.url) loadStream(data.url, 0, false);
+                    });
             }
 
             if(epSearch) {
@@ -1245,7 +1281,6 @@
                 showToast('Ссылка скопирована!', 'success');
             });
         }
-    }
     </script>
 
     <script>
@@ -1281,6 +1316,7 @@
         // 4. Обновление внешнего вида кнопки (Иконка и Текст)
         function updateDropdownUI(status) {
             const container = document.getElementById('animeStatusDropdown');
+            if (!container) return;
             const iconSpan = container.querySelector('.current-status-icon');
             const textSpan = container.querySelector('.current-status-text');
 

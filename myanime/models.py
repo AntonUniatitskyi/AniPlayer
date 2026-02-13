@@ -27,9 +27,18 @@ class Genre(models.Model):
 
 class AnimeTitle(models.Model):
     anilibria_id = models.IntegerField(
-        unique=True, verbose_name="Anilibria ID")
+        unique=True, null=True, blank=True, verbose_name="Anilibria ID")
     shikimori_id = models.IntegerField(
         null=True, blank=True, verbose_name="Shikimori ID", db_index=True
+    )
+
+    SOURCE_CHOICES = [
+        ('anilibria', 'AniLibria'),
+        ('kodik', 'Kodik'),
+        ('shikimori', 'Shikimori'),
+    ]
+    source = models.CharField(
+        max_length=20, choices=SOURCE_CHOICES, default='anilibria', verbose_name="Источник"
     )
     genres = models.ManyToManyField(Genre, related_name='animes', verbose_name="Жанры", blank=True)
 

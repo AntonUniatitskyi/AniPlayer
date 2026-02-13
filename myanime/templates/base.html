@@ -179,6 +179,7 @@
         // Они должны быть доступны всегда, поэтому определяем их вне Swup
 
         window.themeBtn = document.getElementById('themeBtn');
+        window.currentTranslationId = localStorage.getItem('preferred_translation') || 'internal';
         var body = document.body;
 
         // Логика темы
@@ -188,6 +189,161 @@
                 body.classList.add('light-theme');
                 updatePwaThemeColor(true);
             }
+        }
+
+        // Новая функция рендера меню (объединяет твой стиль и мою логику)
+        // 1. ИСПРАВЛЕНИЕ: Улучшенный парсинг (всеядный)
+        function renderHybridTranslations(incomingData, localCount, animeCode) {
+            const menu = document.getElementById('translationMenu');
+            const buttonText = document.getElementById('activeTranslationText');
+            if (!menu) return;
+
+            menu.innerHTML = '';
+            let foundActive = false;
+
+            // --- ЛОГИКА ПОИСКА МАССИВА ---
+            let safeKodikList = [];
+
+            // Вариант 1: Пришел чистый массив
+            if (Array.isArray(incomingData)) {
+                safeKodikList = incomingData;
+            }
+            // Вариант 2: Пришел объект, а массив внутри свойства translations (твой случай)
+            else if (incomingData && typeof incomingData === 'object' && Array.isArray(incomingData.translations)) {
+                safeKodikList = incomingData.translations;
+            }
+            // Вариант 3: Пришел объект, но массив внутри results (бывает в некоторых API)
+            else if (incomingData && typeof incomingData === 'object' && Array.isArray(incomingData.results)) {
+                safeKodikList = incomingData.results;
+            }
+
+            console.log("Kodik Translations Loaded:", safeKodikList); // Для отладки в консоли
+
+            const createItem = (id, name) => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                // Приводим ID к строке для точного сравнения
+                if (String(id) === String(window.currentTranslationId)) {
+                    item.classList.add('active');
+                    if (buttonText) buttonText.textContent = name;
+                    foundActive = true;
+                }
+
+                item.onclick = (e) => {
+                    e.stopPropagation();
+                    window.currentTranslationId = String(id);
+                    localStorage.setItem('preferred_translation', id);
+
+                    // Визуальное обновление
+                    document.querySelectorAll('#translationMenu .dropdown-item').forEach(el => el.classList.remove('active'));
+                    item.classList.add('active');
+                    if (buttonText) buttonText.textContent = name;
+
+                    const dd = document.getElementById('translationDropdown');
+                    if(dd) dd.classList.remove('open');
+
+                    if (id === 'internal') {
+                        if (typeof loadStream === "function") {
+                             // Пытаемся найти кнопку текущей серии и перезагрузить поток
+                             const activeBtn = document.querySelector('.ep-row.active');
+                             if(activeBtn) window.selectEpisode(activeBtn, true);
+                             else location.reload();
+                        }
+                    } else {
+                        // Если перешли на Kodik
+                        const pageData = document.getElementById('anime-page-data');
+                        const ordinal = pageData ? (pageData.dataset.lastOrdinal || 1) : 1;
+                        if (typeof loadKodikEpisode === "function") {
+                            loadKodikEpisode(ordinal, animeCode);
+                        }
+                    }
+                };
+
+                item.innerHTML = `<span>${name}</span>`;
+                return item;
+            };
+
+            // 1. Добавляем локальную озвучку
+            if (localCount > 0) {
+                menu.appendChild(createItem('internal', 'AniLibria (Прямой поток)'));
+            }
+
+            // 2. Добавляем озвучки из Kodik (теперь safeKodikList точно массив)
+            safeKodikList.forEach(t => {
+                // Проверка на наличие имени, иногда бывает name или title
+                const name = t.name || t.title || t.translation?.title || 'Unknown';
+                menu.appendChild(createItem(t.id, name));
+            });
+
+            // 3. Логика выбора по умолчанию, если текущая не найдена
+            if (!foundActive) {
+                if (localCount === 0 && safeKodikList.length > 0) {
+                    // Ищем Studio Band (643) или берем первую
+                    const fallback = safeKodikList.find(t => String(t.id) === '643') || safeKodikList[0];
+                    window.currentTranslationId = fallback.id;
+                    if (buttonText) buttonText.textContent = fallback.name || fallback.title;
+
+                    // Сразу пытаемся загрузить эту озвучку, если мы уже на странице
+                    const pageData = document.getElementById('anime-page-data');
+                    if (pageData && typeof loadKodikEpisode === "function") {
+                         loadKodikEpisode(pageData.dataset.lastOrdinal || 1, animeCode);
+                    }
+                } else if (localCount > 0) {
+                    window.currentTranslationId = 'internal';
+                    if (buttonText) buttonText.textContent = 'AniLibria (Прямой поток)';
+                }
+            }
+        }
+
+        // Рендер кнопок в сайдбаре
+        function renderKodikEpisodes(count, animeCode, lastOrdinal) {
+            const grid = document.getElementById('episodeGrid');
+            if (!grid) return;
+
+            const notice = document.getElementById('kodik-notice');
+            if (notice) notice.remove();
+
+            grid.innerHTML = '';
+
+            for (let i = 1; i <= count; i++) {
+                const btn = document.createElement('button');
+                btn.className = 'ep-row' + (parseInt(i) === parseInt(lastOrdinal) ? ' active' : '');
+                btn.setAttribute('data-ordinal', i);
+                btn.innerHTML = `
+                    <span class="ep-number">${i}</span>
+                    <span class="ep-info">Серия ${i}</span>
+                    <span class="ep-play-icon">▶</span>
+                `;
+
+                btn.onclick = () => {
+                    document.querySelectorAll('.ep-row').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    loadKodikEpisode(i, animeCode);
+                };
+
+                grid.appendChild(btn);
+            }
+        }
+
+        // Загрузка потока по клику или автозапуску
+        function loadKodikEpisode(num, animeCode) {
+            // window.currentTranslationId обычно сохраняется между переходами в Swup
+            const translation = window.currentTranslationId || '643';
+
+            fetch(`/api/stream/${animeCode}/?episode=${num}&translation=${translation}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.url && typeof loadStream === "function") {
+                        loadStream(data.url, 0, true);
+                    }
+                });
+        }
+
+        // Функция инициализации страницы аниме
+        function initAnimeDetail() {
+            const pageData = document.getElementById('anime-page-data');
+            if (!pageData) return;
+            // Инициализацию плеера и навигации оставляем на совести скрипта страницы
         }
 
         function initAccent() {
@@ -266,6 +422,7 @@
             window.scrollTo(0, 0); // Скролл наверх
             updateActiveMenu();    // Обновить активную кнопку внизу
             initDesktopSearch();   // Перезапустить десктопный поиск
+            initAnimeDetail();
             if (typeof window.initWrapped === 'function') {
                 window.initWrapped();
             }
