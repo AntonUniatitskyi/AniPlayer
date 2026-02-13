@@ -329,7 +329,28 @@ def merge_and_delete_titles(main_anime, duplicate_anime):
             f"   [MERGE] Поглощен дубликат: {duplicate_name} -> {main_anime.name_ru}")
 
 
-def save_shikimori_detailed(data, stats=None):
+async def get_shikimori_franchise(session, shiki_id):
+    url = f"https://shikimori.one/api/animes/{shiki_id}/franchise"
+    data = await fetch_json(session, url)
+
+    if not data or 'nodes' not in data:
+        return None, 0
+
+    nodes = data.get('nodes', [])
+    if not nodes:
+        return None, 0
+
+    root_node = nodes[0]
+    current_weight = 0
+    for node in nodes:
+        if str(node.get('id')) == str(shiki_id):
+            current_weight = node.get('weight', 0)
+            break
+
+    return root_node.get('name'), current_weight
+
+
+def save_shikimori_detailed(data, stats=None, franchise_name=None, franchise_order=0):
     with transaction.atomic():
         shiki_id = data.get('id')
 
@@ -371,6 +392,11 @@ def save_shikimori_detailed(data, stats=None):
             anime_obj = AnimeTitle.objects.create(**defaults)
             if stats:
                 stats['kodik_created'] += 1
+
+        if franchise_name:
+            fr_obj, _ = Franchise.objects.get_or_create(name=franchise_name)
+            anime_obj.franchise = fr_obj
+            anime_obj.franchise_order = franchise_order
 
         genre_objs = []
         for g in data.get('genres', []):
@@ -496,7 +522,9 @@ async def fetch_shikimori_catalog(limit_pages, stats=None):
                         detail_data = await fetch_json(session, detail_url)
 
                         if detail_data:
-                            await sync_to_async(save_shikimori_detailed)(detail_data, stats)
+                            fr_name, fr_order = await get_shikimori_franchise(session, shiki_id)
+                            await sync_to_async(save_shikimori_detailed)(detail_data, stats, franchise_name=fr_name,
+                            franchise_order=fr_order)
                             await asyncio.sleep(0.7)
 
                 logger.info(f"Страница {page} полностью обработана.")
