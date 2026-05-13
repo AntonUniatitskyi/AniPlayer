@@ -461,7 +461,20 @@ def wrapped_data_api(request):
     return JsonResponse(data)
 
 
-kodik_parser = KodikParser(validate_token=False)
+# kodik_parser = KodikParser(validate_token=False)
+
+# Прячем экземпляр сюда
+_kodik_parser_instance = None
+
+def get_kodik_parser():
+    """Возвращает парсер, создавая его только при первом вызове"""
+    global _kodik_parser_instance
+    if _kodik_parser_instance is None:
+        # Если Kodik недоступен, ошибка выскочит здесь, но сервер уже будет работать
+        _kodik_parser_instance = KodikParser(validate_token=False)
+    return _kodik_parser_instance
+
+
 @require_GET
 def kodik_link(request, slug):
     try:
@@ -482,7 +495,7 @@ def kodik_link(request, slug):
             return JsonResponse({'url': cached_url, 'source': 'cache'})
 
         # Запрашиваем конкретное качество у Кодика
-        link = kodik_parser.get_m3u8_playlist_link(
+        link = get_kodik_parser().get_m3u8_playlist_link(
             id=str(anime.shikimori_id),
             id_type="shikimori",
             seria_num=int(episode_num),
@@ -512,7 +525,7 @@ def kodik_translations(request, slug):
         if cached_data:
             return JsonResponse({'translations': cached_data})
 
-        info = kodik_parser.get_info(id=str(anime.shikimori_id), id_type="shikimori")
+        info = get_kodik_parser().get_info(id=str(anime.shikimori_id), id_type="shikimori")
 
         if info:
             data = {
